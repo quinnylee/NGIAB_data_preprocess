@@ -102,8 +102,9 @@ def get_cell_weights(raster: xr.Dataset,
     xmax = raster.x[-1]
     ymin = raster.y[0]
     ymax = raster.y[-1]
+    data_vars = list(raster.data_vars)
     rastersource = NumPyRasterSource(
-        raster["RAINRATE"], srs_wkt=wkt, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax
+        raster[data_vars[0]], srs_wkt=wkt, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax
     )
     output = exact_extract(
         rastersource,
@@ -125,6 +126,16 @@ def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     dataset["APCP_surface"] = dataset["precip_rate"] * 3600
     dataset["APCP_surface"].attrs["units"] = "mm h^-1" # ^-1 notation copied from source data
     dataset["APCP_surface"].attrs["source_note"] = "This is just the precip_rate variable converted to mm/h by multiplying by 3600"
+    return dataset
+
+
+def add_precip_rate_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
+    # the inverse of the function above
+    dataset["precip_rate"] = dataset["APCP_surface"] / 3600
+    dataset["precip_rate"].attrs["units"] = "mm s^-1"
+    dataset["precip_rate"].attrs[
+        "source_note"
+    ] = "This is just the APCP_surface variable converted to mm/s by dividing by 3600"
     return dataset
 
 
@@ -313,6 +324,7 @@ def compute_zonal_stats(
     forcings_dir : Path
         Path to directory where outputs are to be stored.
     '''
+    merged_data = merged_data.drop_vars(["crs"])
     logger.info("Computing zonal stats in parallel for all timesteps")
     timer_start = time.time()
     num_partitions = multiprocessing.cpu_count() - 1
@@ -320,7 +332,6 @@ def compute_zonal_stats(
         num_partitions = len(gdf)
 
     catchments = get_cell_weights_parallel(gdf, merged_data, num_partitions)
-
     units = get_units(merged_data)
 
     variables = {
@@ -353,7 +364,7 @@ def compute_zonal_stats(
         "[cyan]Processing variables...", total=len(variables), elapsed=0
     )
     progress.start()
-    for variable in variables.keys():
+    for variable in list(merged_data.data_vars):
         progress.update(variable_task, advance=1)
         progress.update(variable_task, description=f"Processing {variable}")
 
@@ -391,16 +402,20 @@ def compute_zonal_stats(
             # write this to disk now to save memory
             # xarray will monitor memory usage, but it doesn't account for the shared memory used to store the raster
             # This reduces memory usage by about 60%
-            concatenated_da.to_dataset(name=variable).to_netcdf(forcings_dir/ "temp" / f"{variable}_{i}.nc")
+            concatenated_da.to_dataset(name=variable).to_netcdf(
+                forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc"
+            )
         # Merge the chunks back together
-        datasets = [xr.open_dataset(forcings_dir / "temp" / f"{variable}_{i}.nc") for i in range(len(time_chunks))]
+        datasets = [
+            xr.open_dataset(forcings_dir / "temp" / f"{variable}_timechunk_{i}.nc")
+            for i in range(len(time_chunks))
+        ]
         result = xr.concat(datasets, dim="time")
         result.to_netcdf(forcings_dir / "temp" / f"{variable}.nc")
         # close the datasets
         result.close()
         _ = [dataset.close() for dataset in datasets]
-
-        for file in forcings_dir.glob("temp/*_*.nc"):
+        for file in forcings_dir.glob("temp/*_timechunk_*.nc"):
             file.unlink()
         progress.remove_task(chunk_task)
     progress.update(
@@ -456,7 +471,10 @@ def write_outputs(forcings_dir: Path,
             rename_dict[key] = value
 
     final_ds = final_ds.rename_vars(rename_dict)
-    final_ds = add_APCP_SURFACE_to_dataset(final_ds)
+    if "APCP_surface" in final_ds.data_vars:
+        final_ds = add_precip_rate_to_dataset(final_ds)
+    elif "precip_rate" in final_ds.data_vars:
+        final_ds = add_APCP_SURFACE_to_dataset(final_ds)
 
     # this step halves the storage size of the forcings
     for var in final_ds.data_vars:
@@ -468,7 +486,6 @@ def write_outputs(forcings_dir: Path,
     # There are no coordinates, just dimensions, catchment ids are stored in a 1d data var
     # and time is stored in a 2d data var with the same time array for every catchment
     # time is stored as unix timestamps, units have to be set
-
     # add the catchment ids as a 1d data var
     final_ds["ids"] = final_ds["catchment"].astype(str)
     # time needs to be a 2d array of the same time array as unix timestamps for every catchment
@@ -513,10 +530,7 @@ def create_forcings(
     start_time: str, end_time: str, output_folder_name: str, forcing_vars: list[str] = None
 ) -> None:
     forcing_paths = setup_directories(output_folder_name)
-    projection = xr.open_dataset(forcing_paths.template_nc, engine="h5netcdf").crs.esri_pe_string
-    logger.debug("Got projection from grid file")
-
-    gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides").to_crs(projection)
+    gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
 
     if type(start_time) == datetime:
@@ -525,6 +539,7 @@ def create_forcings(
         end_time = end_time.strftime("%Y-%m-%d %H:%M")
 
     merged_data = get_forcing_data(forcing_paths.cached_nc_file, start_time, end_time, gdf, forcing_vars)
+    gdf = gdf.to_crs(merged_data.crs.esri_pe_string)
     compute_zonal_stats(gdf, merged_data, forcing_paths.forcings_dir)
 
 

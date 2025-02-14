@@ -11,6 +11,7 @@ import xarray as xr
 from dask.distributed import Client, LocalCluster, progress
 from data_processing.file_paths import file_paths
 from fsspec.mapping import FSMap
+import rich
 
 
 logger = logging.getLogger(__name__)
@@ -36,6 +37,35 @@ def load_zarr_datasets(forcing_vars: list[str] = None) -> xr.Dataset:
     # the cache option here just holds accessed data in memory to prevent s3 being queried multiple times
     # most of the data is read once and written to disk but some of the coordinate data is read multiple times
     dataset = xr.open_mfdataset(s3_stores, parallel=True, engine="zarr", cache=True)
+    return dataset
+
+
+def load_aorc_zarr_datasets(start_year: int = 1979, end_year: int = 2024) -> xr.Dataset:
+    """Load the aorc zarr dataset from S3."""
+    try:
+        client = Client.current()
+    except ValueError:
+        cluster = LocalCluster()
+        client = Client(cluster)
+    logger.info(f"Loading AORC zarr datasets from {start_year} to {end_year}")
+    estimated_time_s = ((end_year - start_year) * 2.5) + 3.5
+    # from testing, it's about 2.1s per year + 3.5s overhead
+    logger.info(f"This should take roughly {estimated_time_s} seconds")
+    fs = S3ParallelFileSystem(anon=True, default_cache_type="none")
+    s3_url = "s3://noaa-nws-aorc-v1-1-1km/"
+    urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year)]
+    filestores = [s3fs.S3Map(url, s3=fs) for url in urls]
+    timer = rich.progress.Progress()
+    timer.start()
+    dataset = xr.open_mfdataset(filestores, parallel=True, engine="zarr", cache=True)
+    # add dataset.crs and dataset.crs.esri_pe_string
+    dataset = dataset.assign_coords(crs=1)
+    dataset.crs.attrs = {"esri_pe_string": "+proj=longlat +datum=WGS84 +no_defs"}
+
+    # rename latitude and longitude to x and y
+    dataset = dataset.rename({"latitude": "y", "longitude": "x"})
+
+    timer.stop()
     return dataset
 
 
@@ -98,6 +128,7 @@ def clip_dataset_to_bounds(
         Clipped dataset.
     """
     # check time range here in case just this function is imported and not the whole module
+    print(dataset)
     start_time, end_time = validate_time_range(dataset, start_time, end_time)
     dataset = dataset.sel(
         x=slice(bounds[0], bounds[2]),
@@ -117,13 +148,11 @@ def compute_store(stores: xr.Dataset, cached_nc_path: Path) -> xr.Dataset:
     if os.path.exists(temp_path):
         os.remove(temp_path)
 
-    ## Drop crs that's included with one of the datasets
-    stores = stores.drop_vars("crs")
-
     ## Cast every single variable to float32 to save space to save a lot of memory issues later
     ## easier to do it now in this slow download step than later in the steps without dask
     for var in stores.data_vars:
-        stores[var] = stores[var].astype("float32")
+        if var != "crs":
+            stores[var] = stores[var].astype("float32")
 
     client = Client.current()
     future = client.compute(stores.to_netcdf(temp_path, compute=False))
@@ -144,7 +173,9 @@ def get_forcing_data(
     gdf: gpd.GeoDataFrame,
     forcing_vars: list[str] = None,
 ) -> xr.Dataset:
+
     merged_data = None
+
     if os.path.exists(cached_nc_path):
         logger.info("Found cached nc file")
         # open the cached file and check that the time range is correct
@@ -154,6 +185,8 @@ def get_forcing_data(
         range_in_cache = cached_data.time[0].values <= np.datetime64(
             start_time
         ) and cached_data.time[-1].values >= np.datetime64(end_time)
+
+        gdf = gdf.to_crs(cached_data.crs.esri_pe_string)
 
         if not range_in_cache:
             # only do this if the time range is not in the cache as it is slow
@@ -189,7 +222,12 @@ def get_forcing_data(
     if merged_data is None:
         logger.info("Loading zarr stores")
         # create new event loop
-        lazy_store = load_zarr_datasets(forcing_vars)
+        # lazy_store = load_zarr_datasets(forcing_vars)
+        start_year = int(start_time.split("-")[0])
+        end_year = int(end_time.split("-")[0]) + 1
+        lazy_store = load_aorc_zarr_datasets(start_year, end_year)
+        gdf = gdf.to_crs(lazy_store.crs.esri_pe_string)  # for retro
+
         logger.debug("Got zarr stores")
         clipped_store = clip_dataset_to_bounds(lazy_store, gdf.total_bounds, start_time, end_time)
         logger.info("Clipped forcing data to bounds")
@@ -197,4 +235,5 @@ def get_forcing_data(
         logger.info("Forcing data loaded and cached")
         # close the event loop
 
+    # merged_data = merged_data.drop_vars(["crs"])
     return merged_data

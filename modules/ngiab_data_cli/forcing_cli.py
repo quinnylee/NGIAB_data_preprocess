@@ -64,10 +64,8 @@ def main() -> None:
     setup_logging()
     validate_all()
     args = parse_arguments()
-    projection = xr.open_dataset(file_paths.template_nc, engine="h5netcdf").crs.esri_pe_string
-    logging.debug("Got projection from grid file")
 
-    gdf = gpd.read_file(args.input_file, layer="divides").to_crs(projection)
+    gdf = gpd.read_file(args.input_file, layer="divides")
     logging.debug(f"gdf  bounds: {gdf.total_bounds}")
 
     start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
@@ -84,7 +82,7 @@ def main() -> None:
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True, exist_ok=True)
 
-
+    gdf = gdf.to_crs(merged_data.crs.esri_pe_string)
     compute_zonal_stats(gdf, merged_data, forcing_working_dir)
 
     shutil.copy(forcing_working_dir / "forcings.nc", args.output_file)
