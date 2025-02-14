@@ -38,7 +38,7 @@ def create_subset_gpkg(ids: Union[List[str],str], hydrofabric: Path, output_gpkg
         os.remove(output_gpkg_path)
 
     create_empty_gpkg(output_gpkg_path)
-
+    logger.info(f"Subsetting tables: {subset_tables}")
     for table in subset_tables:
         if is_vpu:
             subset_table_by_vpu(table, ids[0], hydrofabric, output_gpkg_path)
@@ -56,7 +56,7 @@ def subset_vpu(vpu_id: str, output_gpkg_path: Path, hydrofabric: Path = file_pat
     create_subset_gpkg(vpu_id, hydrofabric, output_gpkg_path=output_gpkg_path, is_vpu=True)
     logger.info(f"Subset complete for VPU {vpu_id}")
     return output_gpkg_path.parent
-    
+
 
 def subset(
     cat_ids: List[str],

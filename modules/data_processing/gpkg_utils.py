@@ -301,7 +301,7 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
         hydrofabric (Path): The path to the hydrofabric database.
         subset_gpkg_name (Path): The name of the subset geopackage.
     """
-    logger.info(f"Subsetting {table} in {subset_gpkg_name}")
+    logger.debug(f"Subsetting {table} in {subset_gpkg_name}")
     source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
@@ -337,7 +337,7 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
         hydrofabric (str): The path to the hydrofabric database.
         subset_gpkg_name (str): The name of the subset geopackage.
     """
-    logger.info(f"Subsetting {table} in {subset_gpkg_name}")
+    logger.debug(f"Subsetting {table} in {subset_gpkg_name}")
     source_db = sqlite3.connect(f"file:{hydrofabric}?mode=ro", uri=True)
     dest_db = sqlite3.connect(subset_gpkg_name)
 
