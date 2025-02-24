@@ -14,3 +14,4 @@ dist
 *.dat
 uv.lock
 /build
+.venv/
