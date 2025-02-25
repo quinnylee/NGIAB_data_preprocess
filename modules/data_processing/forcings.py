@@ -110,10 +110,10 @@ def get_cell_weights(raster: xr.Dataset,
         rastersource,
         gdf,
         ["cell_id", "coverage"],
-        include_cols=["divide_id"],
+        include_cols=["ID"],
         output="pandas",
     )
-    return output.set_index("divide_id")
+    return output.set_index("ID")
 
 
 def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
@@ -279,6 +279,7 @@ def get_cell_weights_parallel(gdf: gpd.GeoDataFrame,
         DataFrame indexed by divide_id that contains information about coverage
         for each raster cell and each timestep in gridded forcing file.
     '''
+
     gdf_chunks = np.array_split(gdf, num_partitions)
     wkt = gdf.crs.to_wkt()
     one_timestep = input_forcings.isel(time=0).compute()

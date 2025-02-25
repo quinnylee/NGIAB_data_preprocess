@@ -20,11 +20,14 @@ class ColoredFormatter(logging.Formatter):
         return message
 
 
-def setup_logging() -> None:
+def setup_logging(debug) -> None:
     """Set up logging configuration with green formatting."""
     handler = logging.StreamHandler()
     handler.setFormatter(ColoredFormatter("%(asctime)s - %(levelname)s - %(message)s"))
-    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    if debug:
+        logging.basicConfig(level=logging.DEBUG, handlers=[handler])
+    else:
+        logging.basicConfig(level=logging.INFO, handlers=[handler])
 
 
 def set_logging_to_critical_only() -> None:

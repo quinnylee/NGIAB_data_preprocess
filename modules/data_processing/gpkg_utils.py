@@ -9,6 +9,7 @@ from data_processing.file_paths import file_paths
 from shapely.geometry import Point, Polygon
 from shapely.ops import transform
 from shapely.wkb import loads
+import geopandas as gpd
 
 logger = logging.getLogger(__name__)
 
@@ -518,3 +519,59 @@ def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> dict
         mapping[cat] = int(feature)
 
     return mapping
+
+def head_gdf_selection(headwater: str, 
+                       gdb: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    '''  
+    Select headwater row from GeoDataFrame containing all basins in study area.
+
+    Parameters
+    ----------
+    headwater : str
+        NWM 3.0 reach ID of headwater basin
+    gdb : gpd.GeoDataFrame
+        GeoDataFrame that contains geometry information about all basins in
+        study area.
+
+    Returns
+    -------
+    head_gdf : gpd.GeoDataFrame
+        The row in gdb that corresponds to the headwater basin.
+    '''
+    head_gdf = gdb.loc[gdb['ID'] == int(headwater)]
+    return head_gdf
+
+def tail_gdf_selection(headwater: str, 
+                       tailwater: str, 
+                       gdb: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    '''  
+    Select tailwater row from GeoDataFrame containing all basins in study area.
+    The returned geometry is the union of the polygons for the headwater basin
+    and the tailwater basin.
+
+    Parameters
+    ----------
+    headwater : str
+        NWM 3.0 reach ID of headwater basin
+    tailwater : str
+        NWM 3.0 reach ID of tailwater basin
+    gdb : gpd.GeoDataFrame
+        GeoDataFrame that contains geometry information about all basins in
+        study area.
+
+    Returns
+    -------
+    tail_gdf : gpd.GeoDataFrame
+        The row in gdb that corresponds to the tailwater basin with a merged
+        geometry that encompasses both the headwater and tailwater polygons.
+    '''
+    tail_geom = gpd.GeoSeries(
+        [gdb.loc[int(headwater)]['geometry'],
+        gdb.loc[int(tailwater)]['geometry']]
+    ).union_all()
+
+    d = gdb.loc[gdb['ID'] == int(tailwater)]
+    d['geometry'] = tail_geom
+    tail_gdf = gpd.GeoDataFrame(d)
+
+    return tail_gdf

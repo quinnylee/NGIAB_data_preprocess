@@ -128,13 +128,16 @@ def clip_dataset_to_bounds(
         Clipped dataset.
     """
     # check time range here in case just this function is imported and not the whole module
-    print(dataset)
+    # print(dataset)
+    # print(bounds)
     start_time, end_time = validate_time_range(dataset, start_time, end_time)
     dataset = dataset.sel(
-        x=slice(bounds[0], bounds[2]),
-        y=slice(bounds[1], bounds[3]),
+        x=slice(bounds[0], bounds[2]+0.01), # buffer added to deal with weird skinny geometries
+        y=slice(bounds[1], bounds[3]+0.01),
         time=slice(start_time, end_time),
     )
+    print(slice(bounds[0], bounds[2]+0.01))
+    print(slice(bounds[1], bounds[3]+0.01))
     logger.info("Selected time range and clipped to bounds")
     return dataset
 
@@ -227,10 +230,10 @@ def get_forcing_data(
         end_year = int(end_time.split("-")[0]) + 1
         lazy_store = load_aorc_zarr_datasets(start_year, end_year)
         gdf = gdf.to_crs(lazy_store.crs.esri_pe_string)  # for retro
-
         logger.debug("Got zarr stores")
         clipped_store = clip_dataset_to_bounds(lazy_store, gdf.total_bounds, start_time, end_time)
         logger.info("Clipped forcing data to bounds")
+        logger.debug(lazy_store.head())
         merged_data = compute_store(clipped_store, cached_nc_path)
         logger.info("Forcing data loaded and cached")
         # close the event loop
