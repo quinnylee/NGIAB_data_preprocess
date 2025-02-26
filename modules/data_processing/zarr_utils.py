@@ -128,16 +128,14 @@ def clip_dataset_to_bounds(
         Clipped dataset.
     """
     # check time range here in case just this function is imported and not the whole module
-    # print(dataset)
-    # print(bounds)
     start_time, end_time = validate_time_range(dataset, start_time, end_time)
     dataset = dataset.sel(
         x=slice(bounds[0], bounds[2]+0.01), # buffer added to deal with weird skinny geometries
         y=slice(bounds[1], bounds[3]+0.01),
         time=slice(start_time, end_time),
     )
-    print(slice(bounds[0], bounds[2]+0.01))
-    print(slice(bounds[1], bounds[3]+0.01))
+    logger.debug(slice(bounds[0], bounds[2]+0.01))
+    logger.debug(slice(bounds[1], bounds[3]+0.01))
     logger.info("Selected time range and clipped to bounds")
     return dataset
 

@@ -538,7 +538,7 @@ def head_gdf_selection(headwater: str,
     head_gdf : gpd.GeoDataFrame
         The row in gdb that corresponds to the headwater basin.
     '''
-    head_gdf = gdb.loc[gdb['ID'] == int(headwater)]
+    head_gdf = gdb.loc[gdb['ID'] == int(headwater)].copy()
     return head_gdf
 
 def tail_gdf_selection(headwater: str, 
@@ -566,11 +566,11 @@ def tail_gdf_selection(headwater: str,
         geometry that encompasses both the headwater and tailwater polygons.
     '''
     tail_geom = gpd.GeoSeries(
-        [gdb.loc[int(headwater)]['geometry'],
-        gdb.loc[int(tailwater)]['geometry']]
-    ).union_all()
+        [gdb.loc[gdb['ID'] == int(headwater)]['geometry'].values[0],
+        gdb.loc[gdb['ID'] == int(tailwater)]['geometry'].values[0]]
+    ).union_all(method="coverage")
 
-    d = gdb.loc[gdb['ID'] == int(tailwater)]
+    d = gdb.loc[gdb['ID'] == int(tailwater)].copy()
     d['geometry'] = tail_geom
     tail_gdf = gpd.GeoDataFrame(d)
 

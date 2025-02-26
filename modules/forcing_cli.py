@@ -13,12 +13,10 @@ from pathlib import Path
 import shutil
 from data_processing.gpkg_utils import head_gdf_selection, tail_gdf_selection
 import json
-import rioxarray
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
 DATE_FORMAT_HINT = "YYYY-MM-DD"  # printed in help message
-
 
 def parse_arguments() -> argparse.Namespace:
     """Parse command line arguments."""
@@ -27,20 +25,12 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "--hydrofabric",
         "--hf",
+        "--hydrofabric",
         type=Path,
         help="path to hydrofabric gpkg",
-        required=True
     )
 
-    parser.add_argument(
-        "-l",
-        "--layer",
-        type=str,
-        help="layer of geodatabase to open",
-        required=True
-    )
 
     # parser.add_argument(
     #     "-u",
@@ -96,9 +86,13 @@ def parse_arguments() -> argparse.Namespace:
 
     return parser.parse_args()
 
-def process_catchment(id, gdf, args):
-    input_file = Path(f"../output/{id}.gpkg")
-    output_file = Path(f"../output/{id}.nc")
+def process_catchment(id, gdf, args, pair_dir):
+    catchment_dir = Path(f"{pair_dir}/{id}/")
+    if not catchment_dir.exists():
+        catchment_dir.mkdir()
+
+    input_file = Path(f"{pair_dir}/{id}/{id}.gpkg")
+    output_file = Path(f"{pair_dir}/{id}/{id}-aggregated.nc")
 
     start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
     end_time = args.end_date.strftime("%Y-%m-%d %H:%M")
@@ -123,30 +117,45 @@ def process_catchment(id, gdf, args):
     shutil.rmtree(forcing_working_dir)
 
 
-def process_pair(k, v, hf_gdb, args):
-    k_gdf = head_gdf_selection(k, hf_gdb)
-    v_gdf = tail_gdf_selection(k, v, hf_gdb)
+def process_pair(k, v, cat_gdb, args):
+    k_gdf = head_gdf_selection(k, cat_gdb)
+    v_gdf = tail_gdf_selection(k, v, cat_gdb)
     
     k_gdf.set_geometry('geometry', inplace=True)
     logging.debug(f"upstream gdf  bounds: {k_gdf.total_bounds}")
     v_gdf.set_geometry('geometry', inplace=True)
     logging.debug(f"downstream gdf bounds:{v_gdf.bounds}")
 
-    process_catchment(k, k_gdf, args)
-    process_catchment(v, v_gdf, args)
+    pair_dir = Path(f"../output/{k}-{v}/")
+    if not pair_dir.exists():
+        pair_dir.mkdir()
+
+    process_catchment(k, k_gdf, args, pair_dir)
+    process_catchment(v, v_gdf, args, pair_dir)
+
+    ds_u = xr.open_dataset(Path(f"{pair_dir}/{k}/{k}-aggregated.nc"))
+    ds_d = xr.open_dataset(Path(f"{pair_dir}/{v}/{v}-aggregated.nc"))
+
+    name_dict_d = {varname: varname+'_d' for varname in list(ds_d.keys())}
+    ds_d = ds_d.rename_vars(name_dict_d)
+
+    ds = xr.merge([ds_u, ds_d], join="inner")
+    ds.to_netcdf(Path(f"{pair_dir}/{k}-{v}.nc"))
+
     
 def main() -> None:
     time.sleep(0.01)
     args = parse_arguments()
+
     setup_logging(args.debug)
-    validate_all()
+    #validate_all()
 
     logging.debug("debug works")
-    if not Path("../hfv3.parquet").exists():
-        hf_gdb = gpd.read_file(args.hydrofabric, layer=args.layer)
-        hf_gdb.to_parquet("../hfv3.parquet")
+    if not Path("../hfv3_conuscats.parquet").exists():
+        cat_gdb = gpd.read_file(args.hydrofabric, layer="nwm_catchments_conus")
+        cat_gdb.to_parquet("../hfv3_conuscats.parquet", index=False)
     else:
-        hf_gdb = gpd.read_parquet("../hfv3.parquet")
+        cat_gdb = gpd.read_parquet("../hfv3_conuscats.parquet")
 
     with open(args.pairs_file, "r") as f:
         pairs = json.load(f)
@@ -154,7 +163,13 @@ def main() -> None:
     # gdf = gpd.read_file(args.input_file, layer="divides")
     
     for k, v in list(pairs.items()):
-        process_pair(k, v, hf_gdb, args)
+        if v < 0: # in case we forgot to remove a terminal basin
+            continue
+        if k not in cat_gdb.index:
+            continue
+        if v not in cat_gdb.index:
+            continue
+        process_pair(k, v, cat_gdb, args)
 
 if __name__ == "__main__":
     main()
