@@ -11,7 +11,7 @@ import geopandas as gpd
 from datetime import datetime
 from pathlib import Path
 import shutil
-from data_processing.gpkg_utils import head_gdf_selection, tail_gdf_selection
+from data_processing.gpkg_utils import head_geom_selection, tail_geom_selection
 import json
 
 # Constants
@@ -31,6 +31,13 @@ def parse_arguments() -> argparse.Namespace:
         help="path to hydrofabric gpkg",
     )
 
+    parser.add_argument(
+        "-n",
+        "--name",
+        type=str,
+        help="name of experiment, this will distinguish different cached ncs",
+        required=True
+    )
 
     # parser.add_argument(
     #     "-u",
@@ -86,7 +93,7 @@ def parse_arguments() -> argparse.Namespace:
 
     return parser.parse_args()
 
-def process_catchment(id, gdf, args, pair_dir):
+def process_catchment(id, geometries_dict, pair_dir, merged_data):
     catchment_dir = Path(f"{pair_dir}/{id}/")
     if not catchment_dir.exists():
         catchment_dir.mkdir()
@@ -94,22 +101,19 @@ def process_catchment(id, gdf, args, pair_dir):
     input_file = Path(f"{pair_dir}/{id}/{id}.gpkg")
     output_file = Path(f"{pair_dir}/{id}/{id}-aggregated.nc")
 
-    start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
-    end_time = args.end_date.strftime("%Y-%m-%d %H:%M")
-
-    cached_nc_path = output_file.parent / (input_file.stem + "-raw-gridded-data.nc")
-    logging.debug(f"cached nc path: {cached_nc_path}")
-    merged_data = get_forcing_data(cached_nc_path, start_time, end_time, gdf)
-    logging.debug(merged_data)
     forcing_working_dir = output_file.parent / (input_file.stem + "-working-dir")
     if not forcing_working_dir.exists():
         forcing_working_dir.mkdir(parents=True, exist_ok=True)
 
+    geom_id = geometries_dict[id]
+    gdf_dict = {'ID': [id], 'geometry': [geom_id]}
+    gdf_id = gpd.GeoDataFrame(gdf_dict, crs="EPSG:4326")
+
     temp_dir = forcing_working_dir / "temp"
     if not temp_dir.exists():
         temp_dir.mkdir(parents=True, exist_ok=True)
-    gdf = gdf.to_crs(merged_data.crs.esri_pe_string)
-    compute_zonal_stats(gdf, merged_data, forcing_working_dir)
+    gdf_id = gdf_id.to_crs(merged_data.crs.esri_pe_string)
+    compute_zonal_stats(gdf_id, merged_data, forcing_working_dir)
 
     shutil.copy(forcing_working_dir / "forcings.nc", output_file)
     logging.info(f"Created forcings file: {output_file}")
@@ -117,21 +121,14 @@ def process_catchment(id, gdf, args, pair_dir):
     shutil.rmtree(forcing_working_dir)
 
 
-def process_pair(k, v, cat_gdb, args):
-    k_gdf = head_gdf_selection(k, cat_gdb)
-    v_gdf = tail_gdf_selection(k, v, cat_gdb)
-    
-    k_gdf.set_geometry('geometry', inplace=True)
-    logging.debug(f"upstream gdf  bounds: {k_gdf.total_bounds}")
-    v_gdf.set_geometry('geometry', inplace=True)
-    logging.debug(f"downstream gdf bounds:{v_gdf.bounds}")
+def process_pair(k, v, geometries_k, geometries_v, merged_data):
 
     pair_dir = Path(f"../output/{k}-{v}/")
     if not pair_dir.exists():
         pair_dir.mkdir()
 
-    process_catchment(k, k_gdf, args, pair_dir)
-    process_catchment(v, v_gdf, args, pair_dir)
+    process_catchment(k, geometries_k, pair_dir, merged_data)
+    process_catchment(v, geometries_v, pair_dir, merged_data)
 
     ds_u = xr.open_dataset(Path(f"{pair_dir}/{k}/{k}-aggregated.nc"))
     ds_d = xr.open_dataset(Path(f"{pair_dir}/{v}/{v}-aggregated.nc"))
@@ -161,15 +158,51 @@ def main() -> None:
         pairs = json.load(f)
     
     # gdf = gpd.read_file(args.input_file, layer="divides")
-    
+
+    geometries_k = {}
+    geometries_v = {}
+    corrected_list = []
+
     for k, v in list(pairs.items()):
         if v < 0: # in case we forgot to remove a terminal basin
             continue
-        if k not in cat_gdb.index:
+        if int(k) not in cat_gdb.index:
             continue
         if v not in cat_gdb.index:
             continue
-        process_pair(k, v, cat_gdb, args)
+        corrected_list.append([int(k),v])
+        k_geom = head_geom_selection(k, cat_gdb)
+        logging.debug(k_geom)
+        v_geom = tail_geom_selection(k, v, cat_gdb)
+        logging.debug(v_geom)
+        # k_gdf.set_geometry('geometry', inplace=True)
+        # logging.debug(f"upstream gdf  bounds: {k_gdf.total_bounds}")
+        # v_gdf.set_geometry('geometry', inplace=True)
+        # logging.debug(f"downstream gdf bounds:{v_gdf.bounds}")
+
+        geometries_k[int(k)] = k_geom
+        geometries_v[v] = v_geom
+
+    #geometries_k_gs = gpd.GeoSeries(geometries_k, crs="EPSG:4326")
+    geometries_v_gs = gpd.GeoSeries(geometries_v, crs="EPSG:4326")
+    logging.debug(geometries_v_gs)
+    total_geometries = geometries_v_gs.union_all(method="coverage")
+    logging.debug(total_geometries)
+    total_gdf = gpd.GeoDataFrame(crs="EPSG:4326", geometry=[total_geometries])
+    logging.debug(total_gdf.head())
+
+    start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
+    end_time = args.end_date.strftime("%Y-%m-%d %H:%M")
+
+    cached_nc_path = Path(f"../output/{args.name}-total-raw-gridded-data.nc")
+    logging.debug(f"cached nc path: {cached_nc_path}")
+    merged_data = get_forcing_data(cached_nc_path, 
+                                   start_time, 
+                                   end_time, 
+                                   total_gdf)
+    logging.debug(merged_data)
+    for [k,v] in corrected_list:
+        process_pair(k, v, geometries_k, geometries_v, merged_data)
 
 if __name__ == "__main__":
     main()

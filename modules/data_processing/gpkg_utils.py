@@ -520,7 +520,7 @@ def get_cat_to_nhd_feature_id(gpkg: Path = file_paths.conus_hydrofabric) -> dict
 
     return mapping
 
-def head_gdf_selection(headwater: str, 
+def head_geom_selection(headwater: str, 
                        gdb: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     '''  
     Select headwater row from GeoDataFrame containing all basins in study area.
@@ -538,10 +538,12 @@ def head_gdf_selection(headwater: str,
     head_gdf : gpd.GeoDataFrame
         The row in gdb that corresponds to the headwater basin.
     '''
-    head_gdf = gdb.loc[gdb['ID'] == int(headwater)].copy()
-    return head_gdf
+    # head_gdf = gdb.loc[gdb['ID'] == int(headwater)][.copy()]
+    head_geom = gdb.loc[gdb['ID'] == int(headwater)]['geometry'].values[0]
 
-def tail_gdf_selection(headwater: str, 
+    return head_geom
+
+def tail_geom_selection(headwater: str, 
                        tailwater: str, 
                        gdb: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     '''  
@@ -570,8 +572,8 @@ def tail_gdf_selection(headwater: str,
         gdb.loc[gdb['ID'] == int(tailwater)]['geometry'].values[0]]
     ).union_all(method="coverage")
 
-    d = gdb.loc[gdb['ID'] == int(tailwater)].copy()
-    d['geometry'] = tail_geom
-    tail_gdf = gpd.GeoDataFrame(d)
+    # d = gdb.loc[gdb['ID'] == int(tailwater)].copy()
+    # d['geometry'] = tail_geom
+    # tail_gdf = gpd.GeoDataFrame(d)
 
-    return tail_gdf
+    return tail_geom
