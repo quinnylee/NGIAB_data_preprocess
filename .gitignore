@@ -15,4 +15,6 @@ dist
 uv.lock
 /build
 .venv/
-modules/data_processing/scratch.ipynb
+scratch.ipynb
+proc_out/
+output/

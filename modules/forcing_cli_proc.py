@@ -13,6 +13,7 @@ from pathlib import Path
 import shutil
 from data_processing.gpkg_utils import head_geom_selection, tail_geom_selection
 import json
+import os
 
 # Constants
 DATE_FORMAT = "%Y-%m-%d"  # used for datetime parsing
@@ -32,58 +33,35 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "-n",
-        "--name",
-        type=str,
-        help="name of experiment, this will distinguish different cached ncs",
-        required=True
-    )
-
-    # parser.add_argument(
-    #     "-u",
-    #     "--upstream_input_id",
-    #     type=int,
-    #     help="upstream input reach id",
-    #     required=True,
-    # )
-
-    parser.add_argument(
         "-p",
-        "--pairs_file", 
+        "--pairs_dir", 
         type=Path,
-        help="path to txt file of pairs in dict form",
+        help="path to directory of txt file of pairs in dict form",
         required=True
     )
 
+    parser.add_argument(
+        "-o",
+        "--output_dir",
+        type=Path,
+        help="path to directory of raw gridded netcdf files"
+    )
+
     # parser.add_argument(
-    #     "-d",
-    #     "--downstream_input_id",
-    #     type=int,
-    #     help="downstream input reach id",
+    #     "--start_date",
+    #     "--start",
+    #     type=lambda s: datetime.strptime(s, DATE_FORMAT),
+    #     help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
+    #     required=True,
+    # )
+    # parser.add_argument(
+    #     "--end_date",
+    #     "--end",
+    #     type=lambda s: datetime.strptime(s, DATE_FORMAT),
+    #     help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
     #     required=True,
     # )
 
-    # parser.add_argument(
-    #     "-o",
-    #     "--output_file",
-    #     type=Path,
-    #     help="path to the forcing output file, e.g. /path/to/forcings.nc",
-    #     required=True,
-    # )
-    parser.add_argument(
-        "--start_date",
-        "--start",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT),
-        help=f"Start date for forcings/realization (format {DATE_FORMAT_HINT})",
-        required=True,
-    )
-    parser.add_argument(
-        "--end_date",
-        "--end",
-        type=lambda s: datetime.strptime(s, DATE_FORMAT),
-        help=f"End date for forcings/realization (format {DATE_FORMAT_HINT})",
-        required=True,
-    )
     parser.add_argument(
         "-D",
         "--debug",
@@ -139,6 +117,8 @@ def process_pair(k, v, geometries_k, geometries_v, merged_data):
     ds = xr.merge([ds_u, ds_d], join="inner")
     ds.to_netcdf(Path(f"{pair_dir}/{k}-{v}.nc"))
 
+    shutil.rmtree(Path(f"{pair_dir}/{k}/"))
+    shutil.rmtree(Path(f"{pair_dir}/{v}/"))
     
 def main() -> None:
     time.sleep(0.01)
@@ -146,6 +126,10 @@ def main() -> None:
 
     setup_logging(args.debug)
     #validate_all()
+    pairs_files = os.listdir(args.pairs_dir)
+    pairs_list = {pair[:-4]: pair for pair in pairs_files}
+    gridded_files = os.listdir(args.output_dir)
+    # print(pairs)
 
     logging.debug("debug works")
     if not Path("../hfv3_conuscats.parquet").exists():
@@ -154,55 +138,48 @@ def main() -> None:
     else:
         cat_gdb = gpd.read_parquet("../hfv3_conuscats.parquet")
 
-    with open(args.pairs_file, "r") as f:
-        pairs = json.load(f)
+   
+    # start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
+    # end_time = args.end_date.strftime("%Y-%m-%d %H:%M")
+
+    for grid_file in gridded_files:
+        region_name = grid_file[8:-20]
+        pair_file = pairs_list[str(region_name)]
+
+        with open(Path(args.pairs_dir / pair_file), 'r') as f:
+            pairs = json.load(f)
+        
+        geometries_k = {}
+        geometries_v = {}
+        corrected_list = []
+
+        for k, v in list(pairs.items()):
+            if v < 0: # in case we forgot to remove a terminal basin
+                continue
+            if int(k) not in cat_gdb['ID'].values:
+                continue
+            if v not in cat_gdb['ID'].values:
+                continue
+            corrected_list.append([int(k),v])
     
-    # gdf = gpd.read_file(args.input_file, layer="divides")
+            k_geom = head_geom_selection(k, cat_gdb)
+            # logging.debug(k_geom)
+            v_geom = tail_geom_selection(k, v, cat_gdb)
+            # logging.debug(v_geom)
 
-    geometries_k = {}
-    geometries_v = {}
-    corrected_list = []
+            geometries_k[int(k)] = k_geom
+            geometries_v[v] = v_geom
 
-    for k, v in list(pairs.items()):
-        if v < 0: # in case we forgot to remove a terminal basin
-            continue
-        if int(k) not in cat_gdb.index:
-            continue
-        if v not in cat_gdb.index:
-            continue
-        corrected_list.append([int(k),v])
-        k_geom = head_geom_selection(k, cat_gdb)
-        logging.debug(k_geom)
-        v_geom = tail_geom_selection(k, v, cat_gdb)
-        logging.debug(v_geom)
-        # k_gdf.set_geometry('geometry', inplace=True)
-        # logging.debug(f"upstream gdf  bounds: {k_gdf.total_bounds}")
-        # v_gdf.set_geometry('geometry', inplace=True)
-        # logging.debug(f"downstream gdf bounds:{v_gdf.bounds}")
+        if len(geometries_v) == 0:
+            os.remove(grid_file)
+            continue 
 
-        geometries_k[int(k)] = k_geom
-        geometries_v[v] = v_geom
+        merged_data = xr.open_dataset(Path(args.output_dir / grid_file))
+    # logging.debug(merged_data)
+        for [k,v] in corrected_list:
+            process_pair(k, v, geometries_k, geometries_v, merged_data)
 
-    #geometries_k_gs = gpd.GeoSeries(geometries_k, crs="EPSG:4326")
-    geometries_v_gs = gpd.GeoSeries(geometries_v, crs="EPSG:4326")
-    logging.debug(geometries_v_gs)
-    total_geometries = geometries_v_gs.union_all(method="coverage")
-    logging.debug(total_geometries)
-    total_gdf = gpd.GeoDataFrame(crs="EPSG:4326", geometry=[total_geometries])
-    logging.debug(total_gdf.head())
-
-    start_time = args.start_date.strftime("%Y-%m-%d %H:%M")
-    end_time = args.end_date.strftime("%Y-%m-%d %H:%M")
-
-    cached_nc_path = Path(f"../output/{args.name}-total-raw-gridded-data.nc")
-    logging.debug(f"cached nc path: {cached_nc_path}")
-    merged_data = get_forcing_data(cached_nc_path, 
-                                   start_time, 
-                                   end_time, 
-                                   total_gdf)
-    logging.debug(merged_data)
-    for [k,v] in corrected_list:
-        process_pair(k, v, geometries_k, geometries_v, merged_data)
+        os.remove(Path(f"{args.output_dir}/{grid_file}"))
 
 if __name__ == "__main__":
     main()
