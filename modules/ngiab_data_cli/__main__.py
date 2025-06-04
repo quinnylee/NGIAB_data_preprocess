@@ -195,6 +195,7 @@ def main() -> None:
                     end_time=args.end_date,
                     use_nwm_gw=args.nwm_gw,
                     gage_id=gage_id,
+                    location=location
                 )
             logging.info("Realization creation complete.")
 
