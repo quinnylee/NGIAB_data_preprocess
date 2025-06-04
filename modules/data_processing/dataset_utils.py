@@ -230,9 +230,13 @@ def check_local_cache(
         logger.warning("Cached data from different source, .name attr doesn't match")
         return
 
-    range_in_cache = cached_data.time[0].values <= np.datetime64(start_time) and cached_data.time[
-        -1
-    ].values >= np.datetime64(end_time)
+    try:
+        range_in_cache = cached_data.time[0].values <= np.datetime64(start_time) and cached_data.time[
+            -1
+        ].values >= np.datetime64(end_time)
+    except IndexError: # if the dataset is empty, it raises an IndexError, which prematurely exits the function
+        # this happens if the entire selected time interval is out of range
+        range_in_cache = False
 
     if not range_in_cache:
         # the cache does not contain the desired time range
@@ -265,7 +269,6 @@ def save_and_clip_dataset(
 ) -> xr.Dataset:
     """convenience function clip the remote dataset, and either load from cache or save to cache if it's not present"""
     gdf = gdf.to_crs(dataset.crs)
-
     cached_data = check_local_cache(cache_location, start_time, end_time, gdf, dataset)
 
     if not cached_data:

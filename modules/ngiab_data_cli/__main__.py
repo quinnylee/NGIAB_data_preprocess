@@ -162,9 +162,12 @@ def main() -> None:
         if args.forcings:
             logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
             if args.source == "aorc":
+                if location == "hi":
+                    logging.error("AORC data is not available for Hawaii.")
+                    return
                 data = load_aorc_zarr(args.start_date.year, args.end_date.year)
             elif args.source == "nwm":
-                data = load_v3_retrospective_zarr()
+                data = load_v3_retrospective_zarr(location)
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
             cached_data = save_and_clip_dataset(
                 data, gdf, args.start_date, args.end_date, paths.cached_nc_file

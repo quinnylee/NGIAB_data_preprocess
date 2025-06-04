@@ -69,23 +69,35 @@ def verify_indices(gpkg: str = file_paths.conus_hydrofabric) -> None:
     con.close()
 
 
-def create_empty_gpkg(gpkg: Path) -> None:
+def create_empty_gpkg(gpkg: Path, location: str) -> None:
     """
     Create an empty geopackage with the necessary tables and indices.
     """
-    with open(file_paths.template_sql) as f:
-        sql_script = f.read()
+    if location == 'conus':
+        with open(file_paths.template_sql) as f:
+            sql_script = f.read()
+    elif location == 'hi':
+        with open(file_paths.hawaii_template_sql) as f:
+            sql_script = f.read()
+    else:
+        raise ValueError("Invalid location: must be conus or hi")
 
     with sqlite3.connect(gpkg) as conn:
         conn.executescript(sql_script)
 
 
-def add_triggers_to_gpkg(gpkg: Path) -> None:
+def add_triggers_to_gpkg(gpkg: Path, location: str) -> None:
     """
     Adds geopackage triggers required to maintain spatial index integrity
     """
-    with open(file_paths.triggers_sql) as f:
-        triggers = f.read()
+    if location == 'conus':
+        with open(file_paths.triggers_sql) as f:
+            triggers = f.read()
+    elif location == 'hi':
+        with open(file_paths.hawaii_triggers_sql) as f:
+            triggers = f.read()
+    else:
+        raise ValueError("Invalid location: must be conus or hi")
     with sqlite3.connect(gpkg) as conn:
         conn.executescript(triggers)
 
@@ -220,7 +232,7 @@ def get_catid_from_point(coords):
     if len(results) == 0:
         raise IndexError(f"No watershed boundary found for {coords}")
     if len(results) > 1:
-        # check the geometries to see whisch one contains the point
+        # check the geometries to see which one contains the point
         for result in results:
             geom = blob_to_geometry(result[1])
             if geom.contains(point):
@@ -291,6 +303,9 @@ def update_geopackage_metadata(gpkg: Path, hydrofabric: Path) -> None:
     tables = get_feature_tables(hydrofabric)
     con = sqlite3.connect(gpkg)
     for table in tables:
+        if table == "error": # I have no idea what this table is, but it exists in the hawaii hydrofabric
+            # and it breaks this function. Hopefully it's not important!
+            continue
         min_x = con.execute(f"SELECT MIN(minx) FROM rtree_{table}_geom").fetchone()[0]
         min_y = con.execute(f"SELECT MIN(miny) FROM rtree_{table}_geom").fetchone()[0]
         max_x = con.execute(f"SELECT MAX(maxx) FROM rtree_{table}_geom").fetchone()[0]
@@ -310,6 +325,8 @@ def update_geopackage_metadata(gpkg: Path, hydrofabric: Path) -> None:
 
     # update the gpkg_ogr_contents table with table_name and number of features
     for table in tables:
+        if table == "error":  # skip the error table in the HI hydrofabric
+            continue
         num_features = con.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[0]
         con.execute(
             f"INSERT INTO gpkg_ogr_contents (table_name, feature_count) VALUES ('{table}', {num_features})"
@@ -413,10 +430,9 @@ def subset_table(table: str, ids: List[str], hydrofabric: Path, subset_gpkg_name
         key_name = table_keys[table]
     sql_query = f"SELECT * FROM '{table}' WHERE {key_name} IN ({','.join(ids)})"
     contents = source_db.execute(sql_query).fetchall()
-
     insert_data(dest_db, table, contents)
 
-    if table in get_feature_tables(file_paths.conus_hydrofabric):
+    if table in get_feature_tables(hydrofabric):
         fids = [str(x[0]) for x in contents]
         copy_rTree_tables(table, fids, source_db, dest_db)
 
