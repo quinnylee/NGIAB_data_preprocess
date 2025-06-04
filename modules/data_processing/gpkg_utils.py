@@ -9,6 +9,9 @@ from data_processing.file_paths import file_paths
 from shapely.geometry import Point, Polygon
 from shapely.ops import transform
 from shapely.wkb import loads
+import geopandas as gpd
+import pandas as pd
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +192,32 @@ def convert_to_esri102007(shapely_geometry): # Hawaii transformation
     logger.debug(f"old geometry: {shapely_geometry}")
     return new_geometry
 
+def convert_gpkg_to_5070(gpkg):
+    """
+    Convert geometries in a Hawaii geopackage to EPSG:5070 (CONUS Albers) coordinate system.
+    This avoids errors in nextgen runs
+    """
+    for layer_name in gpd.list_layers(gpkg)['name']:
+        logger.debug(layer_name)
+        gdf_layer = gpd.read_file(gpkg, layer=layer_name)
+        logger.debug(gdf_layer)
+        # reproj_layer = gdf_layer.to_crs("EPSG:5070")
+        # reproj_layer.to_file('temp.gpkg', layer=layer_name)
+
+        if "geometry" in gdf_layer.columns:
+            gdf = gpd.GeoDataFrame(gdf_layer, geometry="geometry")
+            gdf_reprojected = gdf.to_crs("EPSG:5070")
+            gdf_reprojected.to_file('transformed.gpkg', layer=layer_name)
+        else:
+            # kind of a stupid fix for layers w/o geometries
+            empty_gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:5070")
+            empty_gdf.to_file('transformed.gpkg', layer=layer_name)
+            gdf_base = gpd.read_file('transformed.gpkg', layer=layer_name)
+            gdf_base = pd.concat([gdf_base,gdf_layer], ignore_index=True)
+            gdf_base.to_file('transformed.gpkg', layer=layer_name)
+
+    os.remove(gpkg)  # remove the original file
+    os.rename('transformed.gpkg', gpkg)  # rename the transformed file to the original name    
 
 def get_catid_from_point(coords):
     """

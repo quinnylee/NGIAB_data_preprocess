@@ -15,7 +15,7 @@ with rich.status.Status("Initializing...") as status:
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
     from data_processing.file_paths import file_paths
     from data_processing.forcings import create_forcings
-    from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point
+    from data_processing.gpkg_utils import get_cat_from_gage_id, get_catid_from_point, convert_gpkg_to_5070
     from data_processing.graph_utils import get_upstream_cats
     from data_processing.subset import subset, subset_vpu
     from data_sources.source_validation import validate_all
@@ -157,7 +157,6 @@ def main() -> None:
                     include_outlet=include_outlet,
                     location=location
                 )
-                logging.info("Subsetting complete.")
 
         if args.forcings:
             logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
@@ -169,6 +168,7 @@ def main() -> None:
             elif args.source == "nwm":
                 data = load_v3_retrospective_zarr(location)
             gdf = gpd.read_file(paths.geopackage_path, layer="divides")
+
             cached_data = save_and_clip_dataset(
                 data, gdf, args.start_date, args.end_date, paths.cached_nc_file
             )
@@ -177,6 +177,11 @@ def main() -> None:
                 cached_data,
                 output_folder_name=output_folder,
             )
+
+            if location == "hi":
+                convert_gpkg_to_5070(paths.geopackage_path)
+                logging.info(f"Transform complete. Output saved to {paths.geopackage_path}")
+                logging.info("Subsetting complete.")
             logging.info("Forcings generation complete.")
 
         if args.realization:
