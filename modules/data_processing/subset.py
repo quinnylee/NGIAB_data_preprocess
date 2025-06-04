@@ -30,7 +30,7 @@ subset_tables = [
 
 
 def create_subset_gpkg(
-    ids: Union[List[str], str], hydrofabric: Path, output_gpkg_path: Path, is_vpu: bool = False
+    ids: Union[List[str], str], hydrofabric: Path, output_gpkg_path: Path, is_vpu: bool = False, location: str = "conus"
 ):
     # ids is a list of nexus and wb ids, or a single vpu id
     if not isinstance(ids, list):
@@ -42,6 +42,12 @@ def create_subset_gpkg(
 
     create_empty_gpkg(output_gpkg_path)
     logger.info(f"Subsetting tables: {subset_tables}")
+    if location == "conus":
+        hydrofabric = file_paths.conus_hydrofabric
+    elif location == "hi":
+        hydrofabric = file_paths.hawaii_hydrofabric
+    else:
+        raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
     for table in subset_tables:
         if is_vpu:
             subset_table_by_vpu(table, ids[0], hydrofabric, output_gpkg_path)
@@ -49,7 +55,7 @@ def create_subset_gpkg(
             subset_table(table, ids, hydrofabric, output_gpkg_path)
 
     add_triggers_to_gpkg(output_gpkg_path)
-    update_geopackage_metadata(output_gpkg_path)
+    update_geopackage_metadata(output_gpkg_path, hydrofabric)
 
 
 def subset_vpu(
@@ -65,10 +71,17 @@ def subset_vpu(
 
 def subset(
     cat_ids: List[str],
-    hydrofabric: Path = file_paths.conus_hydrofabric,
     output_gpkg_path: Path = Path(),
     include_outlet: bool = True,
+    location: str = "conus"
 ):
+    if location == "conus":
+        hydrofabric = file_paths.conus_hydrofabric
+    elif location == "hi":
+        hydrofabric = file_paths.hawaii_hydrofabric
+    else:
+        raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
+    
     upstream_ids = list(get_upstream_ids(cat_ids, include_outlet))
 
     if not output_gpkg_path:
