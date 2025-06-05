@@ -46,10 +46,10 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 
 // select light-style if the browser is in light mode
 // select dark-style if the browser is in dark mode
-var style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/light-style.json';
+var style = '/static/resources/light-style.json'; // change this
 var colorScheme = "light";
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-  style = 'https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/styles/dark-style.json';
+  style = '/static/resources/dark-style.json'; // change this
   colorScheme = "dark";
 }
 var map = new maplibregl.Map({
@@ -129,19 +129,27 @@ map.on("load", () => {
   });
 });
 
-function update_map(cat_id, e) {
+function update_map(cat_id, hf, e) {
   $('#selected-basins').text(cat_id)
-  map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
-  map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
-
+  if (hf == "conus") {
+    map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
+    map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
+  } else if (hf == "hi") {
+    map.setFilter('hi-selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
+    map.setFilter('hi-upstream-catchments', ['any', ['in', 'divide_id', ""]])
+  }
   fetch('/get_upstream_catids', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cat_id),
+    body: JSON.stringify({cat_id: cat_id, hf: hf}),
   })
   .then(response => response.json())
   .then(data => {
-    map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+    if (hf == "conus") {
+      map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+    } else if (hf == "hi") {
+      map.setFilter('hi-upstream-catchments', ['any', ['in', 'divide_id', ...data]]);
+    }
     if (data.length === 0) {
       new maplibregl.Popup()
         .setLngLat(e.lngLat)
@@ -152,7 +160,14 @@ function update_map(cat_id, e) {
 }
 map.on('click', 'catchments', (e) => {
   cat_id = e.features[0].properties.divide_id;
-  update_map(cat_id, e);
+  hf = "conus";
+  update_map(cat_id, hf, e);
+});
+
+map.on('click', 'hi_catchments', (e) => {
+  cat_id = e.features[0].properties.divide_id;
+  hf = "hi";
+  update_map(cat_id, hf, e);
 });
 
 // Create a popup, but don't add it to the map yet.

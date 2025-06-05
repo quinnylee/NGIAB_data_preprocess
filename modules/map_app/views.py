@@ -26,8 +26,10 @@ def index():
 
 @main.route("/get_upstream_catids", methods=["POST"])
 def get_upstream_catids():
-    cat_id = json.loads(request.data.decode("utf-8"))
-    upstream_cats = get_upstream_cats(cat_id)
+    payload = json.loads(request.data.decode("utf-8"))
+    cat_id = payload.get("cat_id")
+    hf = payload.get("hf")
+    upstream_cats = get_upstream_cats(cat_id, location=hf)
     if cat_id in upstream_cats:
         upstream_cats.remove(cat_id)
     return list(upstream_cats), 200
@@ -36,7 +38,7 @@ def get_upstream_catids():
 @main.route("/get_upstream_wbids", methods=["POST"])
 def get_upstream_wbids():
     cat_id = json.loads(request.data.decode("utf-8"))
-    upstream_ids = get_upstream_ids(cat_id)
+    upstream_ids = get_upstream_ids(cat_id, location="conus")
     # remove the selected cat_id from the set
     return [id for id in upstream_ids if id.startswith("wb")], 200
 
