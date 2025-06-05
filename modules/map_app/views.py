@@ -35,7 +35,7 @@ def get_upstream_catids():
     return list(upstream_cats), 200
 
 
-@main.route("/get_upstream_wbids", methods=["POST"])
+@main.route("/get_upstream_wbids", methods=["POST"]) # don't think this function gets used so I didn't change it
 def get_upstream_wbids():
     cat_id = json.loads(request.data.decode("utf-8"))
     upstream_ids = get_upstream_ids(cat_id, location="conus")

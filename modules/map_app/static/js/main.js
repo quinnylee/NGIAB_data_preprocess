@@ -11,14 +11,19 @@ var colorDict = {
 };
 
 // A function that creates a cli command from the interface
-function create_cli_command() {
+function create_cli_command(hf) {
   const cliPrefix = document.getElementById("cli-prefix");
   cliPrefix.style.opacity = 1;
   var selected_basins = $("#selected-basins").text();
   var start_time = document.getElementById("start-time").value.split("T")[0];
   var end_time = document.getElementById("end-time").value.split("T")[0];
-  var command = `-i ${selected_basins} --subset --start ${start_time} --end ${end_time} --forcings --realization --run`;
-  var command_all = `-i ${selected_basins} --start ${start_time} --end ${end_time} --all`;
+  if (hf == "conus") {
+    var loc = "conus";
+  } else if (hf == "hi") {
+    var loc = "hi";
+  }
+  var command = `-i ${selected_basins} --subset --location ${loc} --start ${start_time} --end ${end_time} --forcings --realization --run`;
+  var command_all = `-i ${selected_basins} --location ${loc} --start ${start_time} --end ${end_time} --all`;
   if (selected_basins != "None - get clicking!") {
     $("#cli-command").text(command);
   }
@@ -35,7 +40,6 @@ function updateCommandPrefix() {
 document.getElementById("runcmd-toggle").addEventListener('change', updateCommandPrefix);
 
 // These functions are exported by data_processing.js
-document.getElementById('map').addEventListener('click', create_cli_command);
 document.getElementById('start-time').addEventListener('change', create_cli_command);
 document.getElementById('end-time').addEventListener('change', create_cli_command);
 
@@ -162,12 +166,14 @@ map.on('click', 'catchments', (e) => {
   cat_id = e.features[0].properties.divide_id;
   hf = "conus";
   update_map(cat_id, hf, e);
+  document.getElementById('map').addEventListener('click', create_cli_command(hf="conus"));
 });
 
 map.on('click', 'hi_catchments', (e) => {
   cat_id = e.features[0].properties.divide_id;
   hf = "hi";
   update_map(cat_id, hf, e);
+  document.getElementById('map').addEventListener('click', create_cli_command(hf="hi"));
 });
 
 // Create a popup, but don't add it to the map yet.
