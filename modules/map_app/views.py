@@ -45,11 +45,14 @@ def get_upstream_wbids():
 
 @main.route("/subset", methods=["POST"])
 def subset_selection():
-    cat_ids = list(json.loads(request.data.decode("utf-8")))
+    payload = json.loads(request.data.decode("utf-8"))
+    cat_ids = payload.get("cat_id")
+    hf = payload.get("hf")
     logger.info(cat_ids)
-    subset_name = cat_ids[0]
-    run_paths = file_paths(subset_name)
-    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path)
+    subset_name = [cat_ids]
+    logger.info(subset_name)
+    run_paths = file_paths(f"{hf}-{cat_ids}")
+    subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, location=hf)
     return str(run_paths.geopackage_path), 200
 
 

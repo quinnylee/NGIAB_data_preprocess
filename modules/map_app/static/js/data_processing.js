@@ -1,5 +1,6 @@
 async function subset() {
-    var cat_id = $('#selected-basins').text()
+    var cat_id = $('#selected-basins').text();
+    var hf = $('#hydrofabric').text();
     if (cat_id == 'None - get clicking!') {
         alert('Please select at least one basin in the map before subsetting');
         return;
@@ -12,7 +13,7 @@ async function subset() {
     fetch('/subset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([cat_id]),
+        body: JSON.stringify({cat_id: cat_id, hf: hf}),
     })
         .then(response => response.text())
         .then(filename => {

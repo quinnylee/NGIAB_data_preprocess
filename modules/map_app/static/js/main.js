@@ -135,6 +135,7 @@ map.on("load", () => {
 
 function update_map(cat_id, hf, e) {
   $('#selected-basins').text(cat_id)
+  $('#hydrofabric').text(hf)
   if (hf == "conus") {
     map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
     map.setFilter('upstream-catchments', ['any', ['in', 'divide_id', ""]])
