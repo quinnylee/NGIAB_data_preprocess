@@ -93,7 +93,7 @@ def subset(
     else:
         raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
     
-    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet))
+    upstream_ids = list(get_upstream_ids(cat_ids, include_outlet, location=location))
 
     if not output_gpkg_path:
         # if the name isn't provided, use the first upstream id
