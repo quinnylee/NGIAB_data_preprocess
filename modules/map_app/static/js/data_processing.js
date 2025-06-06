@@ -90,6 +90,10 @@ async function forcings() {
     console.log('source:', source);
     
     var hf = $('#hydrofabric').text();
+    if (hf == "hi" && source == 'aorc') {
+        alert('AORC data is not available for Hawaii. Please select NWM data instead.');
+        return;
+    }
     console.log('hf:', hf);
     document.getElementById('forcings-output-path').textContent = "Generating forcings...";
     fetch('/forcings', {
