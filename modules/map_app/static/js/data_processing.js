@@ -88,12 +88,14 @@ async function forcings() {
     var nwm_aorc = document.getElementById('datasource-toggle').checked;
     var source = nwm_aorc ? 'aorc' : 'nwm';
     console.log('source:', source);
-
+    
+    var hf = $('#hydrofabric').text();
+    console.log('hf:', hf);
     document.getElementById('forcings-output-path').textContent = "Generating forcings...";
     fetch('/forcings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source}),
+        body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source, 'hf': hf }),
     }).then(response => response.text())
         .then(response_code => {
             document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";

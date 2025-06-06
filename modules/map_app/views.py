@@ -73,7 +73,7 @@ def subset_to_file():
 
 @main.route("/forcings", methods=["POST"])
 def get_forcings():
-    # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time}),
+    # body: JSON.stringify({'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time, 'hf': hf}),
     data = json.loads(request.data.decode("utf-8"))
     subset_gpkg = Path(data.get("forcing_dir").split("subset to ")[-1])
     output_folder = Path(subset_gpkg.parent.parent)
@@ -81,6 +81,7 @@ def get_forcings():
 
     start_time = data.get("start_time")
     end_time = data.get("end_time")
+    hf = data.get("hf")
 
     # get the selected data source
     data_source = data.get("source")
@@ -95,9 +96,11 @@ def get_forcings():
     logger.debug(f"forcing_dir: {output_folder}")
     try:
         if data_source == "aorc":
+            if hf == "hi":
+                return jsonify({"error": "AORC data is not available for Hawaii"})
             data = load_aorc_zarr(start_time.year, end_time.year)
         elif data_source == "nwm":
-            data = load_v3_retrospective_zarr()
+            data = load_v3_retrospective_zarr(location=hf)
         gdf = gpd.read_file(paths.geopackage_path, layer="divides")
         cached_data = save_and_clip_dataset(data, gdf, start_time, end_time, paths.cached_nc_file)
 
