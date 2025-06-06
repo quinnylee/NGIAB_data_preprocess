@@ -10,6 +10,7 @@ from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
 from data_processing.file_paths import file_paths
 from data_processing.forcings import create_forcings
 from data_processing.graph_utils import get_upstream_cats, get_upstream_ids
+from data_processing.gpkg_utils import convert_gpkg_to_5070
 from data_processing.subset import subset
 from flask import Blueprint, jsonify, render_template, request
 
@@ -105,6 +106,10 @@ def get_forcings():
         cached_data = save_and_clip_dataset(data, gdf, start_time, end_time, paths.cached_nc_file)
 
         create_forcings(cached_data, paths.output_dir.stem)
+
+        if hf == "hi":
+            convert_gpkg_to_5070(paths.geopackage_path)
+            logging.info(f"Transform complete. Output saved to {paths.geopackage_path}")
     except Exception as e:
         logger.info(f"get_forcings() failed with error: {str(e)}")
         return jsonify({"error": str(e)}), 500
