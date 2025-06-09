@@ -215,6 +215,106 @@ map.on("click", "conus_gages", (e) => {
     "_blank",
   );
 });
+
+map.on('mouseenter', 'hi_gages', (e) => {
+  // Change the cursor style as a UI indicator.
+  map.getCanvas().style.cursor = 'pointer';
+
+  const coordinates = e.features[0].geometry.coordinates.slice();
+  const description = "gages-" + e.features[0].properties.site_no + "<br> click for more info";
+
+  // Ensure that if the map is zoomed out such that multiple
+  // copies of the feature are visible, the popup appears
+  // over the copy being pointed to.
+  while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+  }
+
+  // Populate the popup and set its coordinates
+  // based on the feature found.
+  popup.setLngLat(coordinates).setHTML(description).addTo(map);
+});
+
+map.on("mouseleave", "hi_gages", () => {
+  map.getCanvas().style.cursor = "";
+  popup.remove();
+});
+
+map.on("click", "hi_gages", (e) => {
+  //  https://waterdata.usgs.gov/monitoring-location/02465000
+  window.open(
+    "https://waterdata.usgs.gov/monitoring-location/" +
+    e.features[0].properties.site_no,
+    "_blank",
+  );
+});
+
+map.on('mouseenter', 'ak_gages', (e) => {
+  // Change the cursor style as a UI indicator.
+  map.getCanvas().style.cursor = 'pointer';
+
+  const coordinates = e.features[0].geometry.coordinates.slice();
+  const description = "gages-" + e.features[0].properties.site_no + "<br> click for more info";
+
+  // Ensure that if the map is zoomed out such that multiple
+  // copies of the feature are visible, the popup appears
+  // over the copy being pointed to.
+  while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+  }
+
+  // Populate the popup and set its coordinates
+  // based on the feature found.
+  popup.setLngLat(coordinates).setHTML(description).addTo(map);
+});
+
+map.on("mouseleave", "ak_gages", () => {
+  map.getCanvas().style.cursor = "";
+  popup.remove();
+});
+
+map.on("click", "ak_gages", (e) => {
+  //  https://waterdata.usgs.gov/monitoring-location/02465000
+  window.open(
+    "https://waterdata.usgs.gov/monitoring-location/" +
+    e.features[0].properties.site_no,
+    "_blank",
+  );
+});
+
+map.on('mouseenter', 'prvi_gages', (e) => {
+  // Change the cursor style as a UI indicator.
+  map.getCanvas().style.cursor = 'pointer';
+
+  const coordinates = e.features[0].geometry.coordinates.slice();
+  const description = "gages-" + e.features[0].properties.site_no + "<br> click for more info";
+
+  // Ensure that if the map is zoomed out such that multiple
+  // copies of the feature are visible, the popup appears
+  // over the copy being pointed to.
+  while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+    coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+  }
+
+  // Populate the popup and set its coordinates
+  // based on the feature found.
+  popup.setLngLat(coordinates).setHTML(description).addTo(map);
+});
+
+map.on("mouseleave", "prvi_gages", () => {
+  map.getCanvas().style.cursor = "";
+  popup.remove();
+});
+
+map.on("click", "prvi_gages", (e) => {
+  //  https://waterdata.usgs.gov/monitoring-location/02465000
+  window.open(
+    "https://waterdata.usgs.gov/monitoring-location/" +
+    e.features[0].properties.site_no,
+    "_blank",
+  );
+});
+
 show = false;
 
 // TOGGLE BUTTON LOGIC
@@ -250,10 +350,16 @@ const toggleButtonGages = document.querySelector("#toggle-button-gages");
 toggleButtonGages.addEventListener("click", () => {
   if (showGages) {
     map.setFilter("conus_gages", ["any", ["==", "hl_uri", ""]]);
+    map.setFilter("hi_gages", ["any", ["==", "hl_uri", ""]]);
+    map.setFilter("ak_gages", ["any", ["==", "hl_uri", ""]]);
+    map.setFilter("prvi_gages", ["any", ["==", "hl_uri", ""]]);
     toggleButtonGages.innerText = "Show gages";
     showGages = false;
   } else {
     map.setFilter("conus_gages", null);
+    map.setFilter("hi_gages", null);
+    map.setFilter("ak_gages", null);
+    map.setFilter("prvi_gages", null);
     toggleButtonGages.innerText = "Hide gages";
     showGages = true;
   }

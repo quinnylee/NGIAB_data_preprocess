@@ -8,7 +8,7 @@
             },
             "hydrofabric": {
                 "type": "vector",
-                "url": "pmtiles://https://communityhydrofabric.s3.us-east-1.amazonaws.com/map/merged.pmtiles",
+                "url": "pmtiles://static/resources/merged2.pmtiles",,
                 "attribution": "Community Hydrofabric Based on hf2.2 ODbL <a href=\"https://lynker-spatial.s3-us-west-2.amazonaws.com/copyright.html\">lynker-spatial</a>",
                 "maxzoom":10
             },
@@ -11066,6 +11066,48 @@
           "type": "circle",
           "source": "hydrofabric",
           "source-layer": "conus_gages",
+          "layout": {},
+          "filter": ["any",["==", "hl_reference", ""]],
+          "paint": {
+            "circle-radius": { "stops": [[3, 2], [11, 5]] },
+            "circle-color": ["rgba", 200, 200, 200, 1],
+            "circle-opacity": { "stops": [[3, 0], [9, 1]] }
+          }
+        
+        },
+        {
+          "id": "hi_gages",
+          "type": "circle",
+          "source": "hydrofabric",
+          "source-layer": "hi_gages",
+          "layout": {},
+          "filter": ["any",["==", "hl_reference", ""]],
+          "paint": {
+            "circle-radius": { "stops": [[3, 2], [11, 5]] },
+            "circle-color": ["rgba", 200, 200, 200, 1],
+            "circle-opacity": { "stops": [[3, 0], [9, 1]] }
+          }
+        
+        },
+        {
+          "id": "ak_gages",
+          "type": "circle",
+          "source": "hydrofabric",
+          "source-layer": "ak_gages",
+          "layout": {},
+          "filter": ["any",["==", "hl_reference", ""]],
+          "paint": {
+            "circle-radius": { "stops": [[3, 2], [11, 5]] },
+            "circle-color": ["rgba", 200, 200, 200, 1],
+            "circle-opacity": { "stops": [[3, 0], [9, 1]] }
+          }
+        
+        },
+        {
+          "id": "prvi_gages",
+          "type": "circle",
+          "source": "hydrofabric",
+          "source-layer": "prvi_gages",
           "layout": {},
           "filter": ["any",["==", "hl_reference", ""]],
           "paint": {
