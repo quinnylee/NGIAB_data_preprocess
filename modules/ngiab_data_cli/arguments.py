@@ -68,6 +68,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         help="Location of the feature, e.g. 'conus', 'hi'",
         choices=["conus", "hi"],
+        default="conus"
     )
     parser.add_argument(
         "-s",

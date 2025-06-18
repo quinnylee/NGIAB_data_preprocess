@@ -45,8 +45,6 @@ def validate_input(args: argparse.Namespace) -> None:
 
     # always add or replace the prefix with cat if it is not a lat lon or gage
     if not args.latlon and not args.gage:
-        if not args.location:
-            raise ValueError("Please specify location with --location conus or --location hi, or use --latlon or --gage options.")
         input_feature = "cat-" + input_feature.split("-")[-1]
 
     if args.latlon and args.gage:
