@@ -68,12 +68,14 @@ def validate_time_range(dataset: xr.Dataset, start_time: str, end_time: str) -> 
     start_time_in_dataset = dataset.time.isel(time=0).values
     if np.datetime64(start_time) < start_time_in_dataset:
         logger.warning(
-            f"provided start {start_time} is before the start of the dataset {start_time_in_dataset}, selecting from {start_time_in_dataset}"
+            "provided start %s is before the start of the dataset %s, selecting from %s", 
+            start_time, start_time_in_dataset, start_time_in_dataset
         )
         start_time = start_time_in_dataset
     if np.datetime64(end_time) > end_time_in_dataset:
         logger.warning(
-            f"provided end {end_time} is after the end of the dataset {end_time_in_dataset}, selecting until {end_time_in_dataset}"
+            "provided end %s is after the end of the dataset %s, selecting until %s",
+            end_time, end_time_in_dataset, end_time_in_dataset
         )
         end_time = end_time_in_dataset
     return start_time, end_time
@@ -110,7 +112,7 @@ def clip_dataset_to_bounds(
         y=slice(bounds[1], bounds[3]),
         time=slice(start_time, end_time),
     )
-    logger.debug(f"clipped to {bounds}")
+    logger.debug("clipped to %s", bounds)
     logger.info("Selected time range and clipped to bounds")
     return dataset
 
@@ -174,12 +176,12 @@ def save_dataset(ds_to_save: xr.Dataset, target_path: Path, engine: str = "h5net
     client = Client.current()
     future = client.compute(ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False))
     logger.debug(
-        f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
+        "NetCDF write task submitted to Dask. Waiting for completion to %s...", temp_file_path
     )
     progress(future)
     future.result()
     os.rename(str(temp_file_path), str(target_path))
-    logger.info(f"Successfully saved data to: {target_path}")
+    logger.info("Successfully saved data to: %s", target_path)
 
 
 @use_cluster
@@ -189,7 +191,7 @@ def save_to_cache(
     """
     Compute the store and save it to a cached netCDF file. This is not required but will save time and bandwidth.
     """
-    logger.info(f"Processing dataset for caching. Final cache target: {cached_nc_path}")
+    logger.info("Processing dataset for caching. Final cache target: %s", cached_nc_path)
 
     # lasily cast all numbers to f32
     for name, var in stores.data_vars.items():
@@ -250,12 +252,12 @@ def check_local_cache(
     # replace rainrate with precip
     missing_vars = set(forcing_vars) - set(cached_vars)
     if len(missing_vars) > 0:
-        logger.warning(f"Missing forcing vars in cache: {missing_vars}")
+        logger.warning("Missing forcing vars in cache: %s", missing_vars)
         return
 
     if range_in_cache:
         logger.info("Time range is within cached data")
-        logger.debug(f"Opened cached nc file: [{cached_nc_path}]")
+        logger.debug("Opened cached nc file: [%s]", cached_nc_path)
         merged_data = clip_dataset_to_bounds(cached_data, gdf.total_bounds, start_time, end_time)
         logger.debug("Clipped stores")
 

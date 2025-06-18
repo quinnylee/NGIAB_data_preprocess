@@ -229,7 +229,7 @@ def make_em_config(
     try:
         divide_conf_df = get_model_attributes_modspatialite(hydrofabric)
     except Exception as e:
-        logger.warning(f"mod_spatialite not available, using pyproj instead: {e}")
+        logger.warning("mod_spatialite not available, using pyproj instead: %s", e)
         logger.warning("Install mod_spatialite for improved performance")
         divide_conf_df = get_model_attributes_pyproj(hydrofabric)
 
@@ -331,7 +331,7 @@ def create_realization(
             template_path = paths.config_dir / "downloaded_params.json"
             with open(template_path, "w") as f:
                 json.dump(new_template, f)
-            logger.info(f"downloaded calibrated parameters for {gage_id}")
+            logger.info("downloaded calibrated parameters for %s", gage_id)
 
     conf_df = get_model_attributes(paths.geopackage_path)
 

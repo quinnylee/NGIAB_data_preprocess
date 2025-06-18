@@ -174,8 +174,8 @@ def convert_to_5070(shapely_geometry): # CONUS transformation
     target_crs = pyproj.CRS("EPSG:5070")
     project = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True).transform
     new_geometry = transform(project, shapely_geometry)
-    logger.debug(f" new geometry: {new_geometry}")
-    logger.debug(f"old geometry: {shapely_geometry}")
+    logger.debug(" new geometry: %s", new_geometry)
+    logger.debug("old geometry: %s", shapely_geometry)
     return new_geometry
 
 def convert_to_esri102007(shapely_geometry): # Hawaii transformation
@@ -188,8 +188,8 @@ def convert_to_esri102007(shapely_geometry): # Hawaii transformation
     target_crs = pyproj.CRS("ESRI:102007")
     project = pyproj.Transformer.from_crs(source_crs, target_crs, always_xy=True).transform
     new_geometry = transform(project, shapely_geometry)
-    logger.debug(f" new geometry: {new_geometry}")
-    logger.debug(f"old geometry: {shapely_geometry}")
+    logger.debug(" new geometry: %s", new_geometry)
+    logger.debug("old geometry: %s", shapely_geometry)
     return new_geometry
 
 def convert_gpkg_to_5070(gpkg):
@@ -316,7 +316,7 @@ def insert_data(con: sqlite3.Connection, table: str, contents: List[Tuple]) -> N
     if len(contents) == 0:
         return
 
-    logger.debug(f"Inserting {table}")
+    logger.debug("Inserting %s", table)
     placeholders = ",".join("?" * len(contents[0]))
     con.executemany(f"INSERT INTO '{table}' VALUES ({placeholders})", contents)
     con.commit()
@@ -392,16 +392,16 @@ def subset_table_by_vpu(table: str, vpu: str, hydrofabric: Path, subset_gpkg_nam
     if table == "network":
         # Look for the network entry that has a toid not in the flowpath or nexus tables
         network_toids = [x[2] for x in contents]
-        logger.debug(f"Network toids: {len(network_toids)}")
+        logger.debug("Network toids: %d", len(network_toids))
         sql = "SELECT id FROM flowpaths"
         flowpath_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
-        logger.debug(f"Flowpath ids: {len(flowpath_ids)}")
+        logger.debug("Flowpath ids: %d", len(flowpath_ids))
         sql = "SELECT id FROM nexus"
         nexus_ids = [x[0] for x in dest_db.execute(sql).fetchall()]
-        logger.debug(f"Nexus ids: {len(nexus_ids)}")
+        logger.debug("Nexus ids: %d", len(nexus_ids))
         bad_ids = set(network_toids) - set(flowpath_ids + nexus_ids)
         logger.debug(bad_ids)
-        logger.info(f"Removing {len(bad_ids)} network entries that are not in flowpaths or nexuses")
+        logger.info("Removing %d network entries that are not in flowpaths or nexuses", len(bad_ids))
         # id column is second after fid
         contents = [x for x in contents if x[1] not in bad_ids]
 
@@ -523,30 +523,30 @@ def get_cat_from_gage_id(gage_id: str) -> str:
     gage_id = "".join([x for x in gage_id if x.isdigit()])
 
     if len(gage_id) < 8:
-        logger.warning(f"Gages in the hydrofabric are at least 8 digits {gage_id}")
+        logger.warning("Gages in the hydrofabric are at least 8 digits %s", gage_id)
         old_gage_id = gage_id
         gage_id = f"{int(gage_id):08d}"
-        logger.warning(f"Converted {old_gage_id} to {gage_id}")
+        logger.warning("Converted %s to %s", old_gage_id, gage_id)
 
     gpkg = file_paths.conus_hydrofabric
     location = "conus"
-    logger.info(f"Looking for catid for {gage_id}, in {gpkg}")
+    logger.info("Looking for catid for %s, in %s", gage_id, gpkg)
 
     with sqlite3.connect(gpkg) as con:
         sql_query = f"SELECT id FROM 'flowpath-attributes' WHERE gage = '{gage_id}'"
         result = con.execute(sql_query).fetchall()
     if len(result) == 0:
         gpkg = file_paths.hawaii_hydrofabric
-        logger.info(f"Looking for catid for {gage_id}, in {gpkg}")
+        logger.info("Looking for catid for %s, in %s", gage_id, gpkg)
         with sqlite3.connect(gpkg) as con:
             sql_query = f"SELECT id FROM 'flowpath-attributes' WHERE gage = '{gage_id}'"
             result = con.execute(sql_query).fetchall()
         location = "hi"
     if len(result) == 0:
-        logger.critical(f"Gage ID {gage_id} is not associated with any waterbodies")
+        logger.critical("Gage ID %s is not associated with any waterbodies", gage_id)
         raise IndexError(f"Could not find a waterbody for gage {gage_id}")
     if len(result) > 1:
-        logger.critical(f"Gage ID {gage_id} is associated with multiple waterbodies")
+        logger.critical("Gage ID %s is associated with multiple waterbodies", gage_id)
         raise IndexError(f"Could not find a unique waterbody for gage {gage_id}")
 
     wb_id = result[0][0]
@@ -573,7 +573,7 @@ def get_cat_to_nex_flowpairs(hydrofabric: Path = file_paths.conus_hydrofabric) -
         edges = con.execute(sql_query).fetchall()
         con.close()
     except sqlite3.Error as e:
-        logger.error(f"SQLite error: {e}")
+        logger.error("SQLite error: %s", e)
         raise
     unique_edges = list(set(edges))
     return unique_edges

@@ -66,10 +66,10 @@ def load_aorc_zarr(start_year: int = None, end_year: int = None) -> xr.Dataset:
     if not end_year:
         end_year = 2023
 
-    logger.info(f"Loading AORC zarr datasets from {start_year} to {end_year}")
+    logger.info("Loading AORC zarr datasets from %d to %d", start_year, end_year)
     estimated_time_s = ((end_year - start_year) * 2.5) + 3.5
     # from testing, it's about 2.1s per year + 3.5s overhead
-    logger.info(f"This should take roughly {estimated_time_s} seconds")
+    logger.info("This should take roughly %f seconds", estimated_time_s)
     fs = S3ParallelFileSystem(anon=True, default_cache_type="none")
     s3_url = "s3://noaa-nws-aorc-v1-1-1km/"
     urls = [f"{s3_url}{i}.zarr" for i in range(start_year, end_year + 1)]

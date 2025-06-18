@@ -40,7 +40,7 @@ def validate_input(args: argparse.Namespace) -> None:
             args.gage = True
         elif prefix.lower() == "wb":
             logging.warning("Waterbody IDs are no longer supported!")
-            logging.warning(f"Automatically converting {input_feature} to catid")
+            logging.warning("Automatically converting %s to catid", input_feature)
             time.sleep(2)
 
     # always add or replace the prefix with cat if it is not a lat lon or gage
@@ -54,10 +54,10 @@ def validate_input(args: argparse.Namespace) -> None:
 
     if args.latlon:
         feature_name, location = get_cat_id_from_lat_lon(input_feature)
-        logging.info(f"Found {feature_name} from {input_feature}")
+        logging.info("Found %s from %s", feature_name, input_feature)
     elif args.gage:
         feature_name, location = get_cat_from_gage_id(input_feature)
-        logging.info(f"Found {feature_name} from {input_feature}")
+        logging.info("Found %s from %s", feature_name, input_feature)
     else:
         feature_name = input_feature
         location = args.location
@@ -132,10 +132,10 @@ def main() -> None:
         paths = file_paths(output_folder)
         args = set_dependent_flags(args, paths)  # --validate
         if feature_to_subset:
-            logging.info(f"Processing {feature_to_subset} in {paths.output_dir}")
+            logging.info("Processing %s in %s", feature_to_subset, paths.output_dir)
             if not args.vpu:
                 upstream_count = len(get_upstream_cats(feature_to_subset, location))
-                logging.info(f"Upstream catchments: {upstream_count}")
+                logging.info("Upstream catchments: %d", upstream_count)
                 if upstream_count == 0:
                     # if there are no upstreams, exit
                     logging.error("No upstream catchments found.")
@@ -143,7 +143,7 @@ def main() -> None:
 
         if args.subset:
             if args.vpu:
-                logging.info(f"Subsetting VPU {args.vpu}")
+                logging.info("Subsetting VPU %s", args.vpu)
                 subset_vpu(args.vpu, output_gpkg_path=paths.geopackage_path)
                 logging.info("Subsetting complete.")
             else:
@@ -159,7 +159,7 @@ def main() -> None:
                 )
 
         if args.forcings:
-            logging.info(f"Generating forcings from {args.start_date} to {args.end_date}...")
+            logging.info("Generating forcings from %s to %s...", args.start_date, args.end_date)
             if args.source == "aorc":
                 if location == "hi":
                     logging.error("AORC data is not available for Hawaii.")
@@ -180,11 +180,11 @@ def main() -> None:
 
             if location == "hi":
                 convert_gpkg_to_5070(paths.geopackage_path)
-                logging.info(f"Transform complete. Output saved to {paths.geopackage_path}")
+                logging.info("Transform complete. Output saved to %s", paths.geopackage_path)
             logging.info("Forcings generation complete.")
 
         if args.realization:
-            logging.info(f"Creating realization from {args.start_date} to {args.end_date}...")
+            logging.info("Creating realization from %s to %s...", args.start_date, args.end_date)
             gage_id = None
             if args.gage:
                 gage_id = args.input_feature
@@ -253,13 +253,13 @@ def main() -> None:
                 logging.error("Failed to launch docker container.")
 
         logging.info("All operations completed successfully.")
-        logging.info(f"Output folder: file:///{paths.subset_dir}")
+        logging.info("Output folder: file:///%s", paths.subset_dir)
         # set logging to ERROR level only as dask distributed can clutter the terminal with INFO messages
         # that look like errors
         set_logging_to_critical_only()
 
     except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
+        logging.error("An error occurred: %s", e)
         raise
     shutdown_cluster()
 

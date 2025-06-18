@@ -52,7 +52,7 @@ def create_subset_gpkg(
     else:
         raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
     create_empty_gpkg(output_gpkg_path, location)
-    logger.info(f"Subsetting tables: {subset_tables}")
+    logger.info("Subsetting tables: %s", subset_tables)
     if location == "conus":
         hydrofabric = file_paths.conus_hydrofabric
     elif location == "hi":
@@ -76,7 +76,7 @@ def subset_vpu(
         os.remove(output_gpkg_path)
 
     create_subset_gpkg(vpu_id, hydrofabric, output_gpkg_path=output_gpkg_path, is_vpu=True)
-    logger.info(f"Subset complete for VPU {vpu_id}")
+    logger.info("Subset complete for VPU %s", vpu_id)
     return output_gpkg_path.parent
 
 
@@ -103,5 +103,5 @@ def subset(
         output_gpkg_path = paths.geopackage_path
 
     create_subset_gpkg(upstream_ids, hydrofabric, output_gpkg_path, location=location)
-    logger.info(f"Subset complete for {len(upstream_ids)} features (catchments + nexuses)")
-    logger.debug(f"Subset complete for {upstream_ids} catchments")
+    logger.info("Subset complete for %d features (catchments + nexuses)", len(upstream_ids))
+    logger.debug("Subset complete for %s catchments", upstream_ids)

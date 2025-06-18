@@ -33,7 +33,7 @@ def get_from_to_id_pairs(
         edges = con.execute(sql_query).fetchall()
         con.close()
     except sqlite3.Error as e:
-        logger.error(f"SQLite error: {e}")
+        logger.error("SQLite error: %s", e)
         raise
     unique_edges = list(set(edges))
     return unique_edges
@@ -105,7 +105,7 @@ def get_conus_graph() -> ig.Graph:
         try:
             network_graph = ig.Graph.Read_Pickle(pickled_graph_path)
         except Exception as e:
-            logger.error(f"Error loading graph pickle: {e}")
+            logger.error("Error loading graph pickle: %s", e)
             raise
 
     logger.debug(network_graph.summary())
@@ -131,7 +131,7 @@ def get_hawaii_graph() -> ig.Graph:
         try:
             network_graph = ig.Graph.Read_Pickle(pickled_graph_path)
         except Exception as e:
-            logger.error(f"Error loading graph pickle: {e}")
+            logger.error("Error loading graph pickle: %s", e)
             raise
 
     logger.debug(network_graph.summary())
@@ -162,14 +162,14 @@ def get_outlet_id(wb_or_cat_id: str, location: str) -> str:
         graph = get_hawaii_graph()
     else:
         raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
-    logger.debug(f"location: {location}, graph: {graph.summary()}")
+    logger.debug("location: %s, graph: %s", location, graph.summary())
     node_index = graph.vs.find(name=name).index
-    logger.debug(f"Node index for {name}: {node_index}")
+    logger.debug("Node index for %s: %s", name, node_index)
     # this returns the current node, and every node downstream of it in order
     downstream_node = graph.subcomponent(node_index, mode="OUT")
-    logger.debug(f"Downstream nodes for {name}")
+    logger.debug("Downstream nodes for %s", name)
     for node in downstream_node:
-        logger.debug(f"Node: {node}, Name: {graph.vs[node]['name']}")
+        logger.debug("Node: %s, Name: %s", node, graph.vs[node]['name'])
     if len(downstream_node) >= 2:
         # if there is more than one node in the list,
         # then the second is the downstream node of the first
@@ -197,7 +197,7 @@ def get_upstream_cats(names: Union[str, List[str]], location: str) -> Set[str]:
         graph = get_hawaii_graph()
     else:
         raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
-    logger.debug(f"location: {location}, graph: {graph.summary()}")
+    logger.debug("location: %s, graph: %s", location, graph.summary())
     if isinstance(names, str):
         names = [names]
     # still keeping track of parent ids do we don't read info from overlapping networks more than once
@@ -213,22 +213,22 @@ def get_upstream_cats(names: Union[str, List[str]], location: str) -> Set[str]:
                 node_index = graph.vs.find(name=name).index
             
             node_index = graph.vs.find(cat=name).index
-            logger.debug(f"node index: {node_index}, name: {name}")
+            logger.debug("node index: %s, name: %s", node_index, name)
             upstream_nodes = graph.subcomponent(node_index, mode="IN")
-            logger.debug(f"Upstream nodes for {name}: {upstream_nodes}")
+            logger.debug("Upstream nodes for %s: %s", name, upstream_nodes)
             for node in upstream_nodes:
                 parent_ids.add(graph.vs[node]["name"])
                 cat_ids.add(graph.vs[node]["cat"])
-                logger.debug(f"Adding upstream node: {graph.vs[node]['name']} with cat: {graph.vs[node]['cat']}")
+                logger.debug("Adding upstream node: %s with cat: %s", graph.vs[node]['name'], graph.vs[node]['cat'])
         except KeyError:
-            logger.critical(f"Catchment {name} not found in the hydrofabric graph.")
+            logger.critical("Catchment %s not found in the hydrofabric graph.", name)
         except ValueError:
-            logger.critical(f"Catchment {name} not found in the hydrofabric graph.")
+            logger.critical("Catchment %s not found in the hydrofabric graph.", name)
 
     # sometimes returns None, which isn't helpful
     if None in cat_ids:
         cat_ids.remove(None)
-    logger.debug(f"Upstream catchment IDs for {names}: {cat_ids}")
+    logger.debug("Upstream catchment IDs for %s: %s", names, cat_ids)
     return cat_ids
 
 
@@ -252,17 +252,17 @@ def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True, 
         graph = get_hawaii_graph()
     else:
         raise ValueError(f"Invalid location: {location}. Must be 'conus' or 'hi'.")
-    logger.debug(f"location: {location}, graph: {graph.summary()}")
+    logger.debug("location: %s, graph: %s", location, graph.summary())
     if isinstance(names, str):
         names = [names]
-        logger.debug(f"Names: {names}")
+        logger.debug("Names: %s", names)
     parent_ids = set()
-    logger.debug(f"Initial parent ids: {parent_ids}")
+    logger.debug("Initial parent ids: %s", parent_ids)
     for name in names:
-        logger.debug(f"Processing name: {name}")
+        logger.debug("Processing name: %s", name)
         if ("wb" in name or "cat" in name) and include_outlet:
             name = get_outlet_id(name, location)
-            logger.debug(f"Using outlet ID: {name} for {name}")
+            logger.debug("Using outlet ID: %s for %s", name, name)
         if name in parent_ids:
             continue
         try:
@@ -270,15 +270,15 @@ def get_upstream_ids(names: Union[str, List[str]], include_outlet: bool = True, 
                 node_index = graph.vs.find(cat=name).index
             else:
                 node_index = graph.vs.find(name=name).index
-            logger.debug(f"node index: {node_index}, name: {name}")
+            logger.debug("node index: %s, name: %s", node_index, name)
             upstream_nodes = graph.subcomponent(node_index, mode="IN")
-            logger.debug(f"Upstream nodes for {name}: {upstream_nodes}")
+            logger.debug("Upstream nodes for %s: %s", name, upstream_nodes)
             for node in upstream_nodes:
                 parent_ids.add(graph.vs[node]["name"])
-                logger.debug(f"Adding upstream node: {graph.vs[node]['name']} with cat: {graph.vs[node]['cat']}")
+                logger.debug("Adding upstream node: %s with cat: %s", graph.vs[node]['name'], graph.vs[node]['cat'])
         except KeyError:
-            logger.error(f"feature {name} not found in the hydrofabric graph.")
+            logger.error("feature %s not found in the hydrofabric graph.", name)
         except ValueError:
-            logger.error(f"feature {name} not found in the hydrofabric graph.")
-    logger.debug(f"Upstream IDs for {names}: {parent_ids}")
+            logger.error("feature %s not found in the hydrofabric graph.", name)
+    logger.debug("Upstream IDs for %s: %s", names, parent_ids)
     return parent_ids

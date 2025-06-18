@@ -93,8 +93,8 @@ def get_forcings():
     app = intra_module_db["app"]
     debug_enabled = app.debug
     app.debug = False
-    logger.debug(f"get_forcings() disabled debug mode at {datetime.now()}")
-    logger.debug(f"forcing_dir: {output_folder}")
+    logger.debug("get_forcings() disabled debug mode at %s", datetime.now())
+    logger.debug("forcing_dir: %s", output_folder)
     try:
         if data_source == "aorc":
             if hf == "hi":
@@ -109,9 +109,9 @@ def get_forcings():
 
         if hf == "hi":
             convert_gpkg_to_5070(paths.geopackage_path)
-            logging.info(f"Transform complete. Output saved to {paths.geopackage_path}")
+            logging.info("Transform complete. Output saved to %s", paths.geopackage_path)
     except Exception as e:
-        logger.info(f"get_forcings() failed with error: {str(e)}")
+        logger.info("get_forcings() failed with error: %s", e)
         return jsonify({"error": str(e)}), 500
     app.debug = debug_enabled
 

@@ -187,7 +187,7 @@ def create_shared_memory(
     np.dtype
         Data type of objects in lazy_array.
     """
-    logger.debug(f"Creating shared memory size {lazy_array.nbytes / 10**6} Mb.")
+    logger.debug("Creating shared memory size %f Mb.", (lazy_array.nbytes / 10**6))
     shm = shared_memory.SharedMemory(create=True, size=lazy_array.nbytes)
     shared_array = np.ndarray(lazy_array.shape, dtype=np.float32, buffer=shm.buf)
     # if your data is not float32, xarray will do an automatic conversion here
@@ -372,7 +372,7 @@ def compute_zonal_stats(
                 process_chunk_shared, variable, times, shm.name, shape, dtype
             )
 
-            logger.debug(f"Processing variable: {variable}")
+            logger.debug("Processing variable: %s", variable)
             # process the chunks of catchments in parallel
             with multiprocessing.Pool(num_partitions) as pool:
                 variable_data = pool.map(partial_process_chunk, cat_chunks)
@@ -380,11 +380,11 @@ def compute_zonal_stats(
             # clean up the shared memory
             shm.close()
             shm.unlink()
-            logger.debug(f"Processed variable: {variable}")
+            logger.debug("Processed variable: %s", variable)
             concatenated_da = xr.concat(variable_data, dim="catchment")
             # delete the data to free up memory
             del variable_data
-            logger.debug(f"Concatenated variable: {variable}")
+            logger.debug("Concatenated variable: %s", variable)
             # write this to disk now to save memory
             # xarray will monitor memory usage, but it doesn't account for the shared memory used to store the raster
             # This reduces memory usage by about 60%
@@ -410,7 +410,7 @@ def compute_zonal_stats(
     )
     progress.stop()
     logger.info(
-        f"Forcing generation complete! Zonal stats computed in {time.time() - timer_start:2f} seconds"
+        "Forcing generation complete! Zonal stats computed in %.2f seconds", (time.time() - timer_start)
     )
     write_outputs(forcings_dir, units)
 
@@ -441,7 +441,7 @@ def write_outputs(forcings_dir: Path, units: dict) -> None:
         if var in units:
             final_ds[var].attrs["units"] = units[var]
         else:
-            logger.warning(f"Variable {var} has no units")
+            logger.warning("Variable %s has no units", var)
 
     rename_dict = {}
 
@@ -508,8 +508,8 @@ def setup_directories(cat_id: str) -> file_paths:
 def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     validate_dataset_format(dataset)
     forcing_paths = setup_directories(output_folder_name)
-    logger.debug(f"forcing path {output_folder_name} {forcing_paths.forcings_dir}")
+    logger.debug("forcing path %s %s", output_folder_name, forcing_paths.forcings_dir)
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
-    logger.debug(f"gdf  bounds: {gdf.total_bounds}")
+    logger.debug("gdf  bounds: %s", gdf.total_bounds)
     gdf = gdf.to_crs(dataset.crs)
     compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
