@@ -66,7 +66,7 @@ def validate_input(args: argparse.Namespace) -> None:
     elif args.gage:
         output_folder = input_feature
     else:
-        output_folder = f"{location}-{feature_name}" # there are duplicate cat-ids across different hydrofabrics
+        output_folder = feature_name
 
     return feature_name, output_folder, location
 
