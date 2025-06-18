@@ -248,7 +248,7 @@ def get_catid_from_point(coords):
     if len(results) == 0:
         point = Point(coords["lng"], coords["lat"])
         point = convert_to_esri102007(point)
-        with sqlite3.connect(hawaii_q) as con:
+        with sqlite3.connect(file_paths.hawaii_hydrofabric) as con:
             sql = f"""SELECT DISTINCT d.divide_id, d.geom
                     FROM divides d
                     JOIN rtree_divides_geom r ON d.fid = r.id
