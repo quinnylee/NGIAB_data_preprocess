@@ -235,8 +235,6 @@ def get_catid_from_point(coords):
 
     """
     logger.info(f"Getting catid for {coords}")
-    conus_q = file_paths.conus_hydrofabric
-    hawaii_q = file_paths.hawaii_hydrofabric
     point = Point(coords["lng"], coords["lat"])
     point = convert_to_5070(point)
     with sqlite3.connect(conus_q) as con:
