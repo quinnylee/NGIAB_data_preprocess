@@ -10,11 +10,20 @@ import psutil
 import requests
 from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
+import botocore
 from data_processing.file_paths import file_paths
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (Progress, 
+                           SpinnerColumn, 
+                           TextColumn, 
+                           TimeElapsedColumn, 
+                           BarColumn, 
+                           DownloadColumn, 
+                           TransferSpeedColumn)
 from rich.prompt import Prompt
 from tqdm import TqdmExperimentalWarning
+from data_processing.gpkg_utils import verify_indices
+import sqlite3
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
@@ -26,8 +35,6 @@ hydrofabric_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{S3_KEY}"
 
 
 def decompress_gzip_tar(file_path, output_dir):
-    # use rich to display "decompressing" message with a progress bar that just counts down from 30s
-    # actually measuring this is hard and it usually takes ~20s to decompress
     console.print("Decompressing Hydrofabric...", style="bold green")
     progress = Progress(
         SpinnerColumn(),
@@ -35,15 +42,13 @@ def decompress_gzip_tar(file_path, output_dir):
         TimeElapsedColumn(),
     )
     task = progress.add_task("Decompressing", total=1)
-    progress.start()
-    with gzip.open(file_path, "rb") as f_in:
-        with tarfile.open(fileobj=f_in) as tar:
-            # Extract all contents
-            for member in tar:
-                tar.extract(member, path=output_dir)
-                # Update the progress bar
-    progress.update(task, completed=1)
-    progress.stop()
+    with progress:
+        with gzip.open(file_path, "rb") as f_in:
+            with tarfile.open(fileobj=f_in) as tar:
+                # Extract all contents
+                for member in tar:
+                    tar.extract(member, path=output_dir)
+                    progress.update(task, advance=1 / len(tar.getmembers()))
 
 
 def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
@@ -55,10 +60,13 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
     if os.path.exists(save_path):
         console.print(f"File already exists: {save_path}", style="bold yellow")
         os.remove(save_path)
-
+    
+    client_config = botocore.config.Config(
+        max_pool_connections=75
+    )
     # Initialize S3 client
     s3_client = boto3.client(
-        "s3", aws_access_key_id="", aws_secret_access_key="", region_name=region
+        "s3", aws_access_key_id="", aws_secret_access_key="", region_name=region, config=client_config
     )
     # Disable request signing for public buckets
     s3_client._request_signer.sign = lambda *args, **kwargs: None
@@ -94,19 +102,15 @@ def download_from_s3(save_path, bucket=S3_BUCKET, key=S3_KEY, region=S3_REGION):
         use_threads=True,
     )
 
-    console.print(f"Downloading {key} to {save_path}...", style="bold green")
-    console.print(
-        "The file downloads faster with no progress indicator, this should take around 30s",
-        style="bold yellow",
-    )
-    console.print(
-        "Please use network monitoring on your computer if you wish to track the download",
-        style="green",
-    )
 
     try:
+        dl_progress = Progress(BarColumn(), DownloadColumn(), TransferSpeedColumn())
         # Download file using optimized transfer config
-        s3_client.download_file(Bucket=bucket, Key=key, Filename=save_path, Config=config)
+        with dl_progress:
+            task = dl_progress.add_task("Downloading...", total=total_size)
+            s3_client.download_file(Bucket=bucket, Key=key, Filename=save_path, Config=config,
+                                    Callback=lambda bytes_downloaded: dl_progress.update(
+                                        task, advance=bytes_downloaded))
         return True
     except Exception as e:
         console.print(f"Error downloading file: {e}", style="bold red")
@@ -124,6 +128,14 @@ def get_headers():
 
 
 def download_and_update_hf():
+
+    if file_paths.conus_hydrofabric.is_file():
+        console.print(
+            f"Hydrofabric already exists at {file_paths.conus_hydrofabric}, removing it to download the latest version.",
+            style="bold yellow",
+        )
+        file_paths.conus_hydrofabric.unlink()
+        
     download_from_s3(
         file_paths.conus_hydrofabric.with_suffix(".tar.gz"),
         bucket="communityhydrofabric",
@@ -209,6 +221,17 @@ def validate_hydrofabric():
             )
             sleep(2)
             return
+    
+    # moved this from gpkg_utils to here to avoid potential nested rich live displays
+    if file_paths.conus_hydrofabric.is_file():
+        valid_hf = False
+        while not valid_hf:
+            try:
+                verify_indices()
+                valid_hf = True
+            except sqlite3.DatabaseError:
+                console.print(f"Hydrofabric {file_paths.conus_hydrofabric} is corrupted. Redownloading...", style="red")
+                download_and_update_hf()
 
 
 def validate_output_dir():
@@ -222,7 +245,7 @@ def validate_output_dir():
             response = Prompt.ask("Enter the path to the working directory")
         if response == "" or response.lower() == "y":
             response = "~/ngiab_preprocess_output/"
-        file_paths.set_working_dir(response)
+        file_paths.set_working_dir(response)  # type: ignore
 
 
 def validate_all():
