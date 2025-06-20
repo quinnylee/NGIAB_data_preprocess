@@ -169,8 +169,22 @@ def save_dataset(ds_to_save: xr.Dataset, target_path: Path, engine: str = "h5net
     if temp_file_path.exists():
         os.remove(temp_file_path)
 
+    x_len = ds_to_save.sizes["x"]
+    y_len = ds_to_save.sizes["y"]
+    time_len = ds_to_save.sizes["time"]
+
+    encoding = {}
+    for var in list(ds_to_save.keys()):
+        encoding[var] = {
+            "chunksizes": (min(time_len, 120), y_len, x_len), # original Dask chunks
+            "dtype": ds_to_save[var].dtype,
+            "zlib": True,
+            "complevel": 1, # higher compression levels provide negligible benefits to file size
+            "shuffle": True
+        }
+
     client = Client.current()
-    future = client.compute(ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False))
+    future = client.compute(ds_to_save.to_netcdf(temp_file_path, engine=engine, compute=False, encoding=encoding))
     logger.debug(
         f"NetCDF write task submitted to Dask. Waiting for completion to {temp_file_path}..."
     )
