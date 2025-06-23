@@ -108,8 +108,8 @@ def clip_dataset_to_bounds(
     start_time, end_time = validate_time_range(dataset, start_time, end_time)
 
     dataset = dataset.sel(
-        x=slice(bounds[0], bounds[2]),
-        y=slice(bounds[1], bounds[3]),
+        x=slice(bounds[0], bounds[2]+0.01),
+        y=slice(bounds[1], bounds[3]+0.01),
         time=slice(start_time, end_time),
     )
     logger.debug("clipped to %s", bounds)

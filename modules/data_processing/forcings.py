@@ -92,11 +92,11 @@ def get_cell_weights(raster: xr.Dataset, gdf: gpd.GeoDataFrame, wkt: str) -> pd.
         DataFrame indexed by divide_id that contains information about coverage
         for each raster cell in gridded forcing file.
     """
-    logger.debug(raster)
     xmin = min(raster.x)
-    xmax = max(raster.x)
+    xmax = max(max(raster.x), xmin+1) # really yucky hack for polygons that are too skinny and otherwise cause an exactextract
+                                        # "Incompatible extents" error
     ymin = min(raster.y)
-    ymax = max(raster.y)
+    ymax = max(max(raster.y), ymin+1)
     data_vars = list(raster.data_vars)
     rastersource = NumPyRasterSource(
         raster[data_vars[0]], srs_wkt=wkt, xmin=xmin, xmax=xmax, ymin=ymin, ymax=ymax
@@ -512,4 +512,6 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug("gdf  bounds: %s", gdf.total_bounds)
     gdf = gdf.to_crs(dataset.crs)
+    print(gdf)
+    print(dataset)
     compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
