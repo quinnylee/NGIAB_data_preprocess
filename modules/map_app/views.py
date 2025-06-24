@@ -52,7 +52,7 @@ def subset_selection():
     logger.info(cat_ids)
     subset_name = [cat_ids]
     logger.info(subset_name)
-    run_paths = file_paths(f"{hf}-{cat_ids}")
+    run_paths = file_paths(f"{cat_ids}")
     subset(cat_ids, output_gpkg_path=run_paths.geopackage_path, location=hf)
     return str(run_paths.geopackage_path), 200
 
@@ -107,9 +107,9 @@ def get_forcings():
 
         create_forcings(cached_data, paths.output_dir.stem)
 
-        if hf == "hi":
-            convert_gpkg_to_5070(paths.geopackage_path)
-            logging.info("Transform complete. Output saved to %s", paths.geopackage_path)
+        # if hf == "hi":
+        #     convert_gpkg_to_5070(paths.geopackage_path)
+        #     logging.info("Transform complete. Output saved to %s", paths.geopackage_path)
     except Exception as e:
         logger.info("get_forcings() failed with error: %s", e)
         return jsonify({"error": str(e)}), 500

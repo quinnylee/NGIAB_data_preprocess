@@ -176,9 +176,9 @@ def main() -> None:
                 output_folder_name=output_folder,
             )
 
-            if location == "hi":
-                convert_gpkg_to_5070(paths.geopackage_path)
-                logging.info("Transform complete. Output saved to %s", paths.geopackage_path)
+            # if location == "hi":
+            #     convert_gpkg_to_5070(paths.geopackage_path)
+            #     logging.info("Transform complete. Output saved to %s", paths.geopackage_path)
             logging.info("Forcings generation complete.")
 
         if args.realization:
