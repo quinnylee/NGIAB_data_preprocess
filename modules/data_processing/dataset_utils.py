@@ -177,19 +177,26 @@ def save_dataset(
     if temp_file_path.exists():
         os.remove(temp_file_path)
 
-    x_len = ds_to_save.sizes["x"]
-    y_len = ds_to_save.sizes["y"]
-    time_len = ds_to_save.sizes["time"]
+    estimated_size = ds_to_save.nbytes / (1024 * 1024 * 1024) # in GB
+    print(f"Estimated size of dataset to save: {estimated_size:.2f} GB")
 
-    encoding = {}
-    for var in list(ds_to_save.keys()):
-        encoding[var] = {
-            "chunksizes": (min(time_len, 120), y_len, x_len), # original Dask chunks
-            "dtype": ds_to_save[var].dtype,
-            "zlib": True,
-            "complevel": 1, # higher compression levels provide negligible benefits to file size
-            "shuffle": True
-        }
+    if estimated_size > 5:
+        x_len = ds_to_save.sizes["x"]
+        y_len = ds_to_save.sizes["y"]
+        time_len = ds_to_save.sizes["time"]
+
+        encoding = {}
+        for var in list(ds_to_save.keys()):
+            encoding[var] = {
+                "chunksizes": (time_len, y_len, x_len), # original Dask chunks
+                "dtype": ds_to_save[var].dtype,
+                "zlib": True,
+                "complevel": 1, # higher compression levels provide negligible benefits to file size
+                "shuffle": True
+            }
+    else:
+        # if the dataset is small, use default encoding
+        encoding = None
 
     client = Client.current()
     future: Future = client.compute(
