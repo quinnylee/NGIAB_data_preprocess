@@ -178,7 +178,7 @@ def save_dataset(
         os.remove(temp_file_path)
 
     estimated_size = ds_to_save.nbytes / (1024 * 1024 * 1024) # in GB
-    print(f"Estimated size of dataset to save: {estimated_size:.2f} GB")
+    logger.debug("Estimated size of dataset to save: %f GB", estimated_size)
 
     if estimated_size > 5:
         x_len = ds_to_save.sizes["x"]
