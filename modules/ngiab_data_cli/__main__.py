@@ -8,9 +8,10 @@ with rich.status.Status("loading") as status:
     import logging
     import subprocess
     import time
+    from multiprocessing import cpu_count
 
     import geopandas as gpd
-    from data_processing.create_realization import create_em_realization, create_realization
+    from data_processing.create_realization import create_lstm_realization, create_realization
     from data_processing.dask_utils import shutdown_cluster
     from data_processing.dataset_utils import save_and_clip_dataset
     from data_processing.datasets import load_aorc_zarr, load_v3_retrospective_zarr
@@ -22,6 +23,7 @@ with rich.status.Status("loading") as status:
     from data_sources.source_validation import validate_hydrofabric, validate_output_dir
     from ngiab_data_cli.arguments import parse_arguments
     from ngiab_data_cli.custom_logging import set_logging_to_critical_only, setup_logging
+    
 
 
 def validate_input(args: argparse.Namespace) -> Tuple[str, str]:
@@ -184,8 +186,8 @@ def main() -> None:
             gage_id = None
             if args.gage:
                 gage_id = args.input_feature
-            if args.empirical_model:
-                create_em_realization(
+            if args.lstm:
+                create_lstm_realization(
                     output_folder, start_time=args.start_date, end_time=args.end_date
                 )
             else:
@@ -200,17 +202,13 @@ def main() -> None:
 
         if args.run:
             logging.info("Running Next Gen using NGIAB...")
-            # open the partitions.json file and get the number of partitions
-            with open(paths.metadata_dir / "num_partitions", "r") as f:
-                num_partitions = int(f.read())
-
+            
             try:
                 subprocess.run("docker pull awiciroh/ciroh-ngen-image:latest", shell=True)
             except:
                 logging.error("Docker is not running, please start Docker and try again.")
             try:
-                # command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" joshcu/ngiab /ngen/ngen/data/ auto {num_partitions} local'
-                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {num_partitions} local'
+                command = f'docker run --rm -it -v "{str(paths.subset_dir)}:/ngen/ngen/data" awiciroh/ciroh-ngen-image:latest /ngen/ngen/data/ auto {cpu_count()} local'
                 subprocess.run(command, shell=True)
                 logging.info("Next Gen run complete.")
             except:
