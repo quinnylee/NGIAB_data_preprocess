@@ -50,6 +50,46 @@ async function subset() {
     });
 }
 
+function updateProgressBar(percent) {
+    var bar = document.getElementById("bar");
+    bar.style.width = percent + "%";
+    var barText = document.getElementById("bar-text");
+    barText.textContent = percent + "%";
+}
+
+function pollForcingsProgress(progressFile) {
+    const interval = setInterval(() => {
+        fetch('/forcings_progress', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(progressFile),
+        })
+            .then(response => response.text())
+            .then(data => {
+                if (data == "NaN") {
+                    document.getElementById('forcings-output-path').textContent = "Downloading data...";
+                    document.getElementById('bar-text').textContent = "Downloading...";
+                    document.getElementById('bar').style.animation = "indeterminateAnimation 1s infinite linear";
+                } else {
+                    const percent = parseInt(data, 10);
+                    updateProgressBar(percent);
+                    if (percent > 0 && percent < 100) {
+                        document.getElementById('bar').style.animation = "none"; // stop the indeterminate animation
+                        document.getElementById('forcings-output-path').textContent = "Calculating zonal statistics. See progress below.";
+                    } else if (percent >= 100) {
+                        updateProgressBar(100); // Ensure the progress bar is full
+                        clearInterval(interval);
+                        document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Progress polling error:', error);
+                clearInterval(interval);
+            });
+    }, 1000); // Poll every second
+}
+
 async function forcings() {
     fetch('/subset_check', {
         method: 'POST',
@@ -60,7 +100,6 @@ async function forcings() {
         // 409 if that subset gpkg path already exists
         if (response.status == 409) {
             const filename = await response.text();
-
             console.log('getting forcings');
             document.getElementById('forcings-button').disabled = true;
             document.getElementById('forcings-loading').style.visibility = "visible";
@@ -81,22 +120,26 @@ async function forcings() {
             var source = nwm_aorc ? 'aorc' : 'nwm';
             console.log('source:', source);
 
-            document.getElementById('forcings-output-path').textContent = "Generating forcings...";
+            fetch('/make_forcings_progress_file', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(forcing_dir),
+            })
+            .then(async (response) => response.text())
+            .then(progressFile => { 
+                pollForcingsProgress(progressFile); // Start polling for progress
+            })
             fetch('/forcings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 'forcing_dir': forcing_dir, 'start_time': start_time, 'end_time': end_time , 'source': source}),
-            }).then(response => response.text())
-                .then(response_code => {
-                    document.getElementById('forcings-output-path').textContent = "Forcings generated successfully";
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                }).finally(() => {
-                    document.getElementById('forcings-button').disabled = false;
-                    document.getElementById('forcings-loading').style.visibility = "hidden";
-
-                });
+            })
+            .then(response => response.text())
+            .catch(error => {
+                console.error('Error:', error);
+            }).finally(() => {
+                document.getElementById('forcings-button').disabled = false;        
+            });
         } else {
             alert('No existing geopackage found. Please subset the data before getting forcings');
             return;
