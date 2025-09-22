@@ -89,7 +89,9 @@ class FilePaths:
 
     @property
     def metadata_dir(self) -> Path:
-        return self.subset_dir / "metadata"
+        meta_dir = self.subset_dir / "metadata"
+        meta_dir.mkdir(parents=True, exist_ok=True)
+        return meta_dir
 
     @property
     def forcing_progress_file(self) -> Path:
