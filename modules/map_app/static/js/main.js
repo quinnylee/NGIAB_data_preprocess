@@ -36,6 +36,12 @@ document.getElementById("runcmd-toggle").addEventListener('change', updateComman
 
 // These functions are exported by data_processing.js
 document.getElementById('map').addEventListener('click', create_cli_command);
+// Add keydown handler
+document.getElementById('map').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    create_cli_command(e);
+  }
+});
 document.getElementById('start-time').addEventListener('change', create_cli_command);
 document.getElementById('end-time').addEventListener('change', create_cli_command);
 
@@ -129,6 +135,27 @@ map.on("load", () => {
   });
 });
 
+// crosshair rules
+const crosshair = document.getElementById('map-crosshair');
+let lastInteractionWasKeyboard = false;
+// Detect keyboard interaction so just clicking on the map doesn't show the crosshair
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab' || e.key === 'Enter') {
+    lastInteractionWasKeyboard = true;
+  }
+});
+document.addEventListener('mousedown', () => {
+  lastInteractionWasKeyboard = false;
+});
+
+document.getElementById('map').addEventListener('focusin', () => {
+  if (!lastInteractionWasKeyboard) return; // Only show crosshair if last interaction was keyboard
+  crosshair.style.display = 'block';
+});
+document.getElementById('map').addEventListener('focusout', () => {
+  crosshair.style.display = 'none';
+});
+
 function update_map(cat_id, e) {
   $('#selected-basins').text(cat_id)
   map.setFilter('selected-catchments', ['any', ['in', 'divide_id', cat_id]]);
@@ -179,6 +206,30 @@ map.on('click', 'catchments', (e) => {
   lastClickedLngLat = e.lngLat; // Store the last clicked location
   update_map(cat_id, e);
 });
+
+map.getCanvas().addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    // Get the map canvas size
+    const canvas = map.getCanvas();
+    const rect = canvas.getBoundingClientRect();
+
+    // Compute the center of the map in pixel coordinates
+    const centerPoint = [rect.width / 2, rect.height / 2];
+
+    // Query features at the center point
+    const features = map.queryRenderedFeatures(centerPoint, { layers: ['catchments'] });
+
+    if (features && features.length > 0) {
+      const feature = features[0];
+      const id = feature.properties.divide_id;
+      const lngLat = map.getCenter(); // use the actual map center
+
+      lastClickedLngLat = lngLat;
+      update_map(id, { lngLat });
+    }
+  }
+});
+
 
 // When you want to use it (e.g., in your toggle handler):
 document.getElementById("subset-toggle").addEventListener('change', function() {

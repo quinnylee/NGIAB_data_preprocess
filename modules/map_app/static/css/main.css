@@ -112,6 +112,18 @@ h2 {
   overflow: hidden;
 }
 
+#map-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  pointer-events: none; /* don't block map interaction */
+  fill: light-dark(black, white);
+  display: none; /* hidden by default */
+  z-index: 999; 
+}
+
 #basins-container {
   background: var(--surface-color);
   border-radius: var(--border-radius);
