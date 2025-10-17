@@ -312,6 +312,14 @@ function initializeToggleSwitches() {
     });
   });
 }
+const subsetToggle = document.querySelector("#subset-toggle");
+
+subsetToggle.addEventListener("keydown", (e) => {
+  if (e.code === "Space") {
+    e.stopPropagation();
+  }
+});
+        
 document.addEventListener("DOMContentLoaded", initializeToggleSwitches);
 
 showGages = false;
