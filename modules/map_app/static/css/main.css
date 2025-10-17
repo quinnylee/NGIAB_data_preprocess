@@ -111,6 +111,20 @@ h2 {
   border-radius: var(--border-radius);
   overflow: hidden;
 }
+.map-hint {
+  display: none;
+  font-size: 0.8rem;
+  color: var(--text-color);
+  z-index: 1;
+  position: relative;
+  background-color: var(--background-color);
+  margin-top: 100px;
+  margin-left: 20px;
+}
+
+#map:focus-within .map-hint {
+  display: inline;
+}
 
 #map-crosshair {
   position: absolute;
