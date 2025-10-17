@@ -122,7 +122,22 @@ h2 {
   fill: light-dark(black, white);
   display: none; /* hidden by default */
   z-index: 999; 
+  transform: translate(-12px, -12px);
 }
+
+#map-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150px;
+  height: 150px;
+  pointer-events: none; /* don't block map interaction */
+  stroke: light-dark(black, white);
+  display: none; /* hidden by default */
+  fill-opacity: 0;
+  z-index: 999;
+  transform: translate(-75px, -75px);
+} 
 
 #basins-container {
   background: var(--surface-color);

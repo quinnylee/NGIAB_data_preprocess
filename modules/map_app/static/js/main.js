@@ -135,8 +135,9 @@ map.on("load", () => {
   });
 });
 
-// crosshair rules
+// crosshair and gage selection box rules
 const crosshair = document.getElementById('map-crosshair');
+const box = document.getElementById('map-box');
 let lastInteractionWasKeyboard = false;
 // Detect keyboard interaction so just clicking on the map doesn't show the crosshair
 document.addEventListener('keydown', (e) => {
@@ -151,9 +152,13 @@ document.addEventListener('mousedown', () => {
 document.getElementById('map').addEventListener('focusin', () => {
   if (!lastInteractionWasKeyboard) return; // Only show crosshair if last interaction was keyboard
   crosshair.style.display = 'block';
+  if (showGages) {
+    box.style.display = 'block';
+  }
 });
 document.getElementById('map').addEventListener('focusout', () => {
   crosshair.style.display = 'none';
+  box.style.display = 'none';
 });
 
 function update_map(cat_id, e) {
@@ -320,8 +325,70 @@ toggleButtonGages.addEventListener("click", () => {
     map.setFilter("conus_gages", null);
     toggleButtonGages.innerText = "Hide gages";
     showGages = true;
+    if (!lastInteractionWasKeyboard) return;
+    box.style.display = 'block';  
   }
 });
+
+function getBoxBounds() {
+  const rect = box.getBoundingClientRect();
+  console.log(rect)
+  const mapRect = document.getElementById('map').getBoundingClientRect();
+
+  const minX = rect.left - mapRect.left;
+  const minY = rect.top - mapRect.top;
+  const maxX = minX + rect.width;
+  const maxY = minY + rect.height;
+
+  return [[minX, minY], [maxX, maxY]];
+}
+
+function getFeaturesInBox(layers) {
+  const bounds = getBoxBounds();
+  const features = map.queryRenderedFeatures(bounds, { layers });
+  return features;
+}
+
+document.getElementById('map').addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault(); // prevents page from scrolling
+    if (showGages && box.style.display === 'block') {
+      const currentZoom = map.getZoom();
+      const requiredZoom = 10; // adjust to whatever makes sense
+
+      if (currentZoom >= requiredZoom) {
+        const features = getFeaturesInBox(['conus_gages']);
+        console.log('Features in box:', features);
+        if (features.length > 0) {
+          console.log('Selected features:', features);
+          
+          const coordinates = features[0].geometry.coordinates.slice();
+          const description = features[0].properties.hl_uri + "<br> press enter for more info";
+          const url = "https://waterdata.usgs.gov/monitoring-location/" +
+            features[0].properties.hl_link;
+
+          const popupContent = document.createElement('div');
+          popupContent.setAttribute('tabindex', '0');
+          popupContent.innerHTML = description
+
+          // Add a keydown listener for the SPACE key
+          popupContent.addEventListener('keydown', (evt) => {
+            if (evt.code === 'Enter') {
+              evt.preventDefault();
+              window.open(url, '_blank');
+            }
+          });
+
+          popup.setLngLat(coordinates).setDOMContent(popupContent).addTo(map);
+        } else {
+          console.log('No features inside the box.');
+        }
+    } else {
+        console.log(`Zoom in further`);
+      }
+    }
+  }
+})
 
 showCamels = false;
 const toggleButtonCamels = document.querySelector("#toggle-button-camels");
