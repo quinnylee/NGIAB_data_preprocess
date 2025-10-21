@@ -21,7 +21,7 @@
                 "main_output_variable": "land_surface_water__runoff_depth",
                 "uses_forcing_file": false,
                 "registration_function": "register_bmi_lstm",
-                "library_file": "/dmod/shared_libs/libbmi_burn_lstm.so"
+                "library_file": "/dmod/shared_libs/librust_lstm_1025.so"
               }
             }
           ]
