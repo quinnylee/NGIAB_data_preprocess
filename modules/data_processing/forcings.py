@@ -312,7 +312,6 @@ def get_units(dataset: xr.Dataset) -> dict:
             units[var] = dataset[var].attrs["units"]
     return units
 
-
 def interpolate_nan_values(
     dataset: xr.Dataset,
     dim: str = "time",
@@ -345,7 +344,7 @@ def interpolate_nan_values(
         if not var.isnull().any().compute():
             continue
         logger.info("Interpolating NaN values in %s", name)
-
+        var = var.compute()
         dataset[name] = var.interpolate_na(
             dim=dim,
             method=method,
