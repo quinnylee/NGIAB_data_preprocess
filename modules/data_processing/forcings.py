@@ -447,7 +447,7 @@ def interpolate_nan_values(
         if not var.isnull().any().compute():
             continue
         logger.info("Interpolating NaN values in %s", name)
-
+        var = var.compute()
         dataset[name] = var.interpolate_na(
             dim=dim,
             method=method,
