@@ -117,7 +117,6 @@ def get_cell_weights(raster: xr.Dataset, gdf: gpd.GeoDataFrame, wkt: str) -> pd.
     )  # type: ignore
     return output.set_index("divide_id")
 
-
 def add_APCP_SURFACE_to_dataset(dataset: xr.Dataset) -> xr.Dataset:
     """Convert precipitation value to correct units."""
     # precip_rate is mm/s
@@ -576,4 +575,5 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
     gdf = gdf.to_crs(dataset.crs)
+    dataset = dataset.isel(y=slice(None, None, -1)) # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
     compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
