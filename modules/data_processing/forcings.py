@@ -575,5 +575,5 @@ def create_forcings(dataset: xr.Dataset, output_folder_name: str) -> None:
     gdf = gpd.read_file(forcing_paths.geopackage_path, layer="divides")
     logger.debug(f"gdf  bounds: {gdf.total_bounds}")
     gdf = gdf.to_crs(dataset.crs)
-    dataset = dataset.isel(y=slice(None, None, -1)) # flip y coordinate to match geospatial orientation
+    dataset = dataset.isel(y=slice(None, None, -1)) # Flip y-axis: source data has y ordered from top-to-bottom (as in image arrays), but geospatial operations expect y to increase from bottom-to-top (increasing latitude).
     compute_zonal_stats(gdf, dataset, forcing_paths.forcings_dir)
